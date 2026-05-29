@@ -1004,6 +1004,75 @@ function pickAnalytics() {
   hideWelcome();
   showAnalytics();
 }
+
+/* ════════════════════════════════════════════════════════════
+   SWIPE GESTURES  (mobile touch support)
+   • Exam screen : swipe up/down or left/right → navigate questions
+   • Selection   : swipe right → open drawer
+   • Drawer      : swipe left  → close drawer
+════════════════════════════════════════════════════════════ */
+
+(function initSwipe() {
+  let tx = 0, ty = 0;          // touch start coords
+  const MIN = 40;              // minimum px to count as a swipe
+  const MAX_CROSS = 80;        // max perpendicular movement allowed
+
+  function onTouchStart(e) {
+    const t = e.touches[0];
+    tx = t.clientX;
+    ty = t.clientY;
+  }
+
+  function onTouchEnd(e) {
+    const t = e.changedTouches[0];
+    const dx = t.clientX - tx;
+    const dy = t.clientY - ty;
+    const adx = Math.abs(dx);
+    const ady = Math.abs(dy);
+
+    // ── Exam screen: up/down or left/right → navigate ──
+    const examScreen = document.getElementById('exam-screen');
+    if (examScreen && examScreen.style.display !== 'none') {
+      // Don't steal scroll inside textareas or long open-question cards
+      if (e.target.closest('textarea')) return;
+
+      if (ady > MIN && ady > adx && adx < MAX_CROSS) {
+        // vertical swipe
+        if (dy < 0) navigate(1);   // swipe up   → next
+        else        navigate(-1);  // swipe down → prev
+      } else if (adx > MIN && adx > ady && ady < MAX_CROSS) {
+        // horizontal swipe
+        if (dx < 0) navigate(1);   // swipe left  → next
+        else        navigate(-1);  // swipe right → prev
+      }
+      return;
+    }
+
+    // ── Mobile drawer: swipe left to close ──
+    const drawer = document.getElementById('mobile-drawer');
+    if (drawer && drawer.classList.contains('open')) {
+      if (dx < -MIN && ady < MAX_CROSS) closeMobileMenu();
+      return;
+    }
+
+    // ── Selection / welcome screen: swipe right to open drawer ──
+    const selScreen = document.getElementById('selection-screen');
+    const welScreen = document.getElementById('welcome-screen');
+    const onSel = selScreen && selScreen.style.display !== 'none';
+    const onWel = welScreen && welScreen.style.display !== 'none';
+    if ((onSel || onWel) && dx > MIN && ady < MAX_CROSS) {
+      // Only open drawer when on mobile (drawer button exists and is visible)
+      const ham = document.getElementById('hamburger-btn');
+      if (ham && getComputedStyle(ham).display !== 'none') {
+        openMobileMenu();
+      }
+    }
+  }
+
+  document.addEventListener('touchstart', onTouchStart, { passive: true });
+  document.addEventListener('touchend',   onTouchEnd,   { passive: true });
+})();
+
 /* ── Bootstrap ─────────────────────────────────────────────────────────── */
 window.addEventListener('DOMContentLoaded', () => {
   buildSelectionScreen();

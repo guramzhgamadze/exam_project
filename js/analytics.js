@@ -276,6 +276,10 @@ function renderAnalytics() {
         <div class="an-empty-icon">📊</div>
         <div class="an-empty-title">სტატისტიკა ჯერ არ არის</div>
         <div class="an-empty-sub">გაიარეთ ერთი გამოცდა მაინც, შემდეგ სტატისტიკა გამოჩნდება.</div>
+        <div class="an-transfer-wrap" style="margin-top:16px;justify-content:center">
+          <button class="an-import-btn" onclick="document.getElementById('an-import-input').click()">📥 სტატისტიკის იმპორტი</button>
+          <input id="an-import-input" type="file" accept=".json" style="display:none" onchange="importStats(event)">
+        </div>
       </div>`;
     return;
   }
@@ -448,6 +452,11 @@ function renderAnalytics() {
   html += `
 <div class="an-reset-wrap">
   ${anyUnrechecked ? `<button class="an-recheck-btn" onclick="recheckAllSessions()">🔄 ძველი შედეგების განახლება</button>` : `<span class="an-recheck-done">✅ ყველა შედეგი განახლებულია</span>`}
+  <div class="an-transfer-wrap">
+    <button class="an-export-btn" onclick="exportStats()">📤 სტატისტიკის ექსპორტი</button>
+    <button class="an-import-btn" onclick="document.getElementById('an-import-input').click()">📥 სტატისტიკის იმპორტი</button>
+    <input id="an-import-input" type="file" accept=".json" style="display:none" onchange="importStats(event)">
+  </div>
   <button class="an-reset-btn" onclick="confirmReset()">🗑 სტატისტიკის გასუფთავება</button>
 </div>`;
 
@@ -487,7 +496,7 @@ function recheckAllSessions() {
         text:     q.text.slice(0, 120),
         selected: mcqAnswers[q.id] ?? null,
         correct:  q.answer ?? null,
-        isRight:  q.answer ? (mcqAnswers[q.id] === q.answer) : null,
+        isRight:  q.answer ? q.answer.split('|').map(s=>s.trim()).includes(mcqAnswers[q.id]?.trim() ?? '') : null,
       }));
 
     const scored   = newMcqResults.filter(r => r.correct !== null);
@@ -563,6 +572,66 @@ function recheckAllSessions() {
     : `განახლდა ${stats.sessions.length} გამოცდა. ქულები არ შეცვლილა.`;
   alert(msg);
   renderAnalytics();
+}
+
+/* ── Export / Import ────────────────────────────────────────────────────── */
+
+function exportStats() {
+  try {
+    const stats = loadStats();
+    const json  = JSON.stringify(stats, null, 2);
+    const blob  = new Blob([json], { type: 'application/json' });
+    const url   = URL.createObjectURL(blob);
+    const a     = document.createElement('a');
+    const date  = new Date().toISOString().slice(0, 10);
+    a.href      = url;
+    a.download  = `biology_stats_${date}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  } catch (e) {
+    alert('ექსპორტი ვერ მოხერხდა: ' + e.message);
+  }
+}
+
+function importStats(event) {
+  const file = event.target.files?.[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function (e) {
+    try {
+      const imported = JSON.parse(e.target.result);
+
+      // Basic validation
+      if (!imported || !Array.isArray(imported.sessions)) {
+        throw new Error('ფაილის ფორმატი არასწორია');
+      }
+
+      const existing = loadStats();
+      const existingIds = new Set(existing.sessions.map(s => s.id));
+
+      // Merge: add only sessions not already present (by id)
+      let added = 0;
+      imported.sessions.forEach(s => {
+        if (!existingIds.has(s.id)) {
+          existing.sessions.push(s);
+          added++;
+        }
+      });
+
+      saveStats(existing);
+      alert(`იმპორტი დასრულდა. დამატებულია ${added} ახალი სესია.`);
+      renderAnalytics();
+    } catch (err) {
+      alert('იმპორტი ვერ მოხერხდა: ' + err.message);
+    } finally {
+      // Reset input so the same file can be re-imported if needed
+      event.target.value = '';
+    }
+  };
+  reader.readAsText(file);
 }
 
 /* ── Reset ──────────────────────────────────────────────────────────────── */
