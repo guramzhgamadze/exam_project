@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="ka">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ბიოლოგია — ეროვნული გამოცდები 2010–2025</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+Georgian:wght@300;400;600;700&family=Noto+Sans+Georgian:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+
+  <!-- ═══════════════════════════════════════════
+       WELCOME SCREEN
+  ════════════════════════════════════════════════ -->
+  <div id="welcome-screen">
+    <div class="wlc-card">
+
+      <!-- Header -->
+      <div class="wlc-header">
+        <img src="images/2018/logo.png" class="wlc-logo" alt="NAEC">
+        <div class="wlc-header-text">
+          <div class="wlc-org">შეფასებისა და გამოცდების ეროვნული ცენტრი</div>
+          <h1 class="wlc-title">ტესტი ბიოლოგიაში</h1>
+          <div class="wlc-subtitle">ერთიანი ეროვნული გამოცდები · 2010–2025</div>
+        </div>
+      </div>
+
+      <!-- Year grid -->
+      <div class="wlc-section-label">აირჩიეთ გამოცდის წელი</div>
+      <div class="wlc-year-grid" id="wlc-year-grid">
+        <!-- years injected by JS -->
+      </div>
+
+      <!-- Bottom actions -->
+      <div class="wlc-actions">
+        <button class="wlc-stats-btn" onclick="pickAnalytics()">
+          <span class="wlc-stats-icon">📊</span>
+          <span>სტატისტიკა</span>
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       SELECTION SCREEN
+  ════════════════════════════════════════════════ -->
+  <div id="selection-screen">
+
+    <!-- Desktop tab bar (hidden on mobile) -->
+    <nav class="year-bar" id="desktop-nav">
+      <button class="year-btn" data-year="2010" onclick="setYear('2010')">2010</button>
+      <button class="year-btn" data-year="2011" onclick="setYear('2011')">2011</button>
+      <button class="year-btn" data-year="2012" onclick="setYear('2012')">2012</button>
+      <button class="year-btn" data-year="2013" onclick="setYear('2013')">2013</button>
+      <button class="year-btn" data-year="2014" onclick="setYear('2014')">2014</button>
+      <button class="year-btn" data-year="2015" onclick="setYear('2015')">2015</button>
+      <button class="year-btn" data-year="2016" onclick="setYear('2016')">2016</button>
+      <button class="year-btn" data-year="2017" onclick="setYear('2017')">2017</button>
+      <button class="year-btn" data-year="2018" onclick="setYear('2018')">2018</button>
+      <button class="year-btn" data-year="2019" onclick="setYear('2019')">2019</button>
+      <button class="year-btn" data-year="2020" onclick="setYear('2020')">2020</button>
+      <button class="year-btn" data-year="2021" onclick="setYear('2021')">2021</button>
+      <button class="year-btn" data-year="2022" onclick="setYear('2022')">2022</button>
+      <button class="year-btn" data-year="2023" onclick="setYear('2023')">2023</button>
+      <button class="year-btn" data-year="2024" onclick="setYear('2024')">2024</button>
+      <button class="year-btn" data-year="2025" onclick="setYear('2025')">2025</button>
+      <button class="year-btn analytics-tab" data-year="analytics" onclick="showAnalytics()">📊 სტატისტიკა</button>
+    </nav>
+
+    <!-- Variant sub-bars -->
+    <div class="variant-bar" id="vbar-2021">
+      <button class="var-btn active" data-exam="2021-1" onclick="setVariant('2021-1')">I ვარიანტი · ივლისი</button>
+      <button class="var-btn"        data-exam="2021-2" onclick="setVariant('2021-2')">II ვარიანტი · აგვისტო</button>
+    </div>
+    <div class="variant-bar" id="vbar-2022">
+      <button class="var-btn active" data-exam="2022-1" onclick="setVariant('2022-1')">I ვარიანტი · ივლისი</button>
+      <button class="var-btn"        data-exam="2022-2" onclick="setVariant('2022-2')">II ვარიანტი · დამატებითი სესია</button>
+    </div>
+
+    <!-- Mobile top bar (hidden on desktop) -->
+    <div class="mobile-topbar" id="mobile-topbar">
+      <div class="mobile-topbar-title">
+        <span class="mobile-active-year" id="mobile-active-label">2020</span>
+        <span class="mobile-active-variant" id="mobile-active-variant"></span>
+      </div>
+      <button class="hamburger-btn" id="hamburger-btn" onclick="openMobileMenu()" aria-label="მენიუ">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+
+    <!-- Mobile drawer overlay -->
+    <div class="drawer-overlay" id="drawer-overlay" onclick="closeMobileMenu()"></div>
+
+    <!-- Mobile slide-in drawer -->
+    <div class="mobile-drawer" id="mobile-drawer">
+      <div class="drawer-header">
+        <span class="drawer-title">ბიოლოგია 2010–2025</span>
+        <button class="drawer-close" onclick="closeMobileMenu()">✕</button>
+      </div>
+      <div class="drawer-body">
+        <div class="drawer-section-label">წელი</div>
+        <div class="drawer-years">
+          <button class="drawer-year-btn" data-year="2010" onclick="drawerSetYear('2010')">2010</button>
+          <button class="drawer-year-btn" data-year="2011" onclick="drawerSetYear('2011')">2011</button>
+          <button class="drawer-year-btn" data-year="2012" onclick="drawerSetYear('2012')">2012</button>
+          <button class="drawer-year-btn" data-year="2013" onclick="drawerSetYear('2013')">2013</button>
+          <button class="drawer-year-btn" data-year="2014" onclick="drawerSetYear('2014')">2014</button>
+          <button class="drawer-year-btn" data-year="2015" onclick="drawerSetYear('2015')">2015</button>
+          <button class="drawer-year-btn" data-year="2016" onclick="drawerSetYear('2016')">2016</button>
+          <button class="drawer-year-btn" data-year="2017" onclick="drawerSetYear('2017')">2017</button>
+          <button class="drawer-year-btn" data-year="2018" onclick="drawerSetYear('2018')">2018</button>
+          <button class="drawer-year-btn" data-year="2019" onclick="drawerSetYear('2019')">2019</button>
+          <button class="drawer-year-btn" data-year="2020" onclick="drawerSetYear('2020')">2020</button>
+          <button class="drawer-year-btn" data-year="2021" onclick="drawerSetYear('2021')">2021</button>
+          <button class="drawer-year-btn" data-year="2022" onclick="drawerSetYear('2022')">2022</button>
+          <button class="drawer-year-btn" data-year="2023" onclick="drawerSetYear('2023')">2023</button>
+          <button class="drawer-year-btn" data-year="2024" onclick="drawerSetYear('2024')">2024</button>
+          <button class="drawer-year-btn" data-year="2025" onclick="drawerSetYear('2025')">2025</button>
+        </div>
+
+        <!-- 2021 variants in drawer -->
+        <div class="drawer-variants" id="drawer-vbar-2021" style="display:none">
+          <div class="drawer-section-label">ვარიანტი</div>
+          <button class="drawer-var-btn" data-exam="2021-1" onclick="drawerSetVariant('2021-1')">I ვარიანტი · ივლისი</button>
+          <button class="drawer-var-btn" data-exam="2021-2" onclick="drawerSetVariant('2021-2')">II ვარიანტი · აგვისტო</button>
+        </div>
+
+        <!-- 2022 variants in drawer -->
+        <div class="drawer-variants" id="drawer-vbar-2022" style="display:none">
+          <div class="drawer-section-label">ვარიანტი</div>
+          <button class="drawer-var-btn" data-exam="2022-1" onclick="drawerSetVariant('2022-1')">I ვარიანტი · ივლისი</button>
+          <button class="drawer-var-btn" data-exam="2022-2" onclick="drawerSetVariant('2022-2')">II ვარიანტი · დამატებითი სესია</button>
+        </div>
+
+        <div class="drawer-divider"></div>
+        <button class="drawer-analytics-btn" onclick="drawerShowAnalytics()">📊 სტატისტიკა</button>
+      </div>
+    </div>
+
+    <!-- Exam panes + analytics -->
+    <main id="app">
+      <div id="analytics-pane"></div>
+    </main>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       EXAM SCREEN
+  ════════════════════════════════════════════════ -->
+  <div id="exam-screen" style="display:none">
+    <div class="exam-topbar">
+      <div class="exam-topbar-left">
+        <img class="exam-logo" src="images/2018/logo.png" alt="NAEC">
+        <div class="exam-topbar-org">
+          <span>შეფასებისა და გამოცდების ეროვნული ცენტრი</span>
+          <span id="exam-topbar-date" class="exam-topbar-date"></span>
+        </div>
+      </div>
+      <div class="exam-topbar-right">
+        <span id="exam-title-bar" class="exam-title-bar">ტესტი ბიოლოგიაში</span>
+      </div>
+    </div>
+    <div class="exam-stage">
+      <div class="exam-card" id="exam-card"></div>
+    </div>
+    <div class="exam-bottombar">
+      <div class="exam-progress-info">
+        <span id="q-counter" class="q-counter">1 / 50</span>
+        <div class="exam-mini-progress">
+          <div class="exam-mini-fill" id="exam-mini-fill"></div>
+        </div>
+      </div>
+      <div class="exam-timer-wrap">
+        <span class="exam-timer-icon">⏱</span>
+        <span id="exam-timer" class="exam-timer">2:30:00</span>
+      </div>
+      <div class="exam-nav-arrows">
+        <button class="nav-arrow" id="btn-prev" onclick="navigate(-1)" title="წინა (↑)">&#8593;</button>
+        <button class="nav-arrow" id="btn-next" onclick="navigate(1)"  title="შემდეგი (↓)">&#8595;</button>
+      </div>
+      <button class="exam-submit-btn" id="exam-submit-btn" onclick="submitExam()">✓ დასრულება</button>
+      <button class="exam-exit-btn" onclick="exitExam()" title="გასვლა">✕</button>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       RESULTS SCREEN
+  ════════════════════════════════════════════════ -->
+  <div id="results-screen" style="display:none"></div>
+
+  <script src="js/data.js?v=1779049025"></script>
+  <script src="js/analytics.js?v=1779049025"></script>
+  <script src="js/app.js?v=1779049025"></script>
+
+</body>
+</html>
