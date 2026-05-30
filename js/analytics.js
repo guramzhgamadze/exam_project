@@ -93,6 +93,7 @@ function recordSession(examKey, mcqAnswers, openAnswers) {
     date:        new Date().toISOString(),
     mcqResults,
     openResults,
+    openGrades:  typeof openGrades !== 'undefined' ? {...openGrades} : {},
     score:       nCorrect,
     total:       scored.length,
     pct:         scored.length ? Math.round(nCorrect / scored.length * 100) : null,
@@ -262,6 +263,38 @@ function renderMistakeQuestion(m) {
   return out;
 }
 
+
+/* ── Open answer grading from analytics ─────────────────────────────────── */
+function analyticsGradeToggle(sessionId, key, val) {
+  const stats = loadStats();
+  const s = stats.sessions.find(s => s.id === sessionId);
+  if (!s) return;
+  if (!s.openGrades) s.openGrades = {};
+  s.openGrades[key] = val;
+  saveStats(stats);
+  const wrap = document.querySelector(`.an-open-grade-wrap[data-sid="${sessionId}"][data-key="${key}"]`);
+  if (wrap) {
+    wrap.querySelectorAll('.an-open-grade-btn').forEach(b => b.classList.remove('active'));
+    const target = wrap.querySelector(`.an-open-grade-btn[data-val="${val}"]`);
+    if (target) target.classList.add('active');
+  }
+  const grades = s.openGrades;
+  const correct = Object.values(grades).filter(v => v === true).length;
+  const total   = Object.keys(grades).length;
+  const badge = document.getElementById(`an-open-score-${sessionId}`);
+  if (badge) badge.textContent = `📝 ღია: ${correct} / ${total}`;
+}
+
+function buildAnOpenGradeButtons(sessionId, key, savedGrades) {
+  const saved = (savedGrades || {})[key];
+  const okCls  = saved === true  ? ' active' : '';
+  const errCls = saved === false ? ' active' : '';
+  return `<div class="an-open-grade-wrap" data-sid="${sessionId}" data-key="${key}">
+    <button class="an-open-grade-btn an-open-grade-ok${okCls}"  data-val="true"  onclick="analyticsGradeToggle(${sessionId}, '${key}', true)">✓ სწორი</button>
+    <button class="an-open-grade-btn an-open-grade-err${errCls}" data-val="false" onclick="analyticsGradeToggle(${sessionId}, '${key}', false)">✗ არასწორი</button>
+  </div>`;
+}
+
 /* ── Main render ────────────────────────────────────────────────────────── */
 
 function renderAnalytics() {
@@ -345,6 +378,7 @@ function renderAnalytics() {
     ${scoreDelta}
     <span class="an-sess-pct" style="color:${col}">${p ?? '—'}%</span>
     ${recheckBadge}
+    ${s.openResults && s.openResults.length ? `<span class="an-open-score-badge" id="an-open-score-${s.id}">📝 ღია: ${Object.values(s.openGrades||{}).filter(v=>v===true).length} / ${Object.keys(s.openGrades||{}).length || '?' }</span>` : ''}
     <span class="an-sess-toggle" id="tog-${sid}">▶</span>
   </div>
   <div class="an-sess-body" id="${sid}" style="display:none">`;
@@ -383,7 +417,10 @@ function renderAnalytics() {
         if (!r.items.length) {
           // Single open answer
           const hasTyped = r.typed && r.typed.trim();
-          html += `<div class="an-open-card">
+          const gradeKey0 = r.qId;
+          const savedGrade0 = (s.openGrades || {})[gradeKey0];
+          const gradeCls0 = savedGrade0 === true ? 'an-open-card-ok' : savedGrade0 === false ? 'an-open-card-err' : '';
+          html += `<div class="an-open-card ${gradeCls0}">
             <div class="an-open-q"><strong>კ.${r.num}</strong> ${r.text}${r.text.length >= 120 ? '…' : ''}</div>
             <div class="an-open-row">
               <div class="an-open-col">
@@ -395,6 +432,7 @@ function renderAnalytics() {
                 <div class="an-open-model">${escHtml(r.modelAnswer)}</div>
               </div>` : ''}
             </div>
+            ${buildAnOpenGradeButtons(s.id, gradeKey0, s.openGrades)}
           </div>`;
         } else {
           // Sub-item open answers
@@ -402,7 +440,10 @@ function renderAnalytics() {
             <div class="an-open-q"><strong>კ.${r.num}</strong> ${r.text}${r.text.length >= 120 ? '…' : ''}</div>`;
           r.items.forEach(item => {
             const hasTyped = item.typed && item.typed.trim();
-            html += `<div class="an-open-item">
+            const gradeKeyI = r.qId + '_' + item.id;
+            const savedGradeI = (s.openGrades || {})[gradeKeyI];
+            const gradeCls = savedGradeI === true ? 'an-open-item-ok' : savedGradeI === false ? 'an-open-item-err' : '';
+            html += `<div class="an-open-item ${gradeCls}">
               <div class="an-open-item-id">${item.id}</div>
               <div class="an-open-item-q">${item.text}</div>
               <div class="an-open-row">
@@ -415,6 +456,7 @@ function renderAnalytics() {
                   <div class="an-open-model">${escHtml(item.modelAnswer)}</div>
                 </div>` : ''}
               </div>
+              ${buildAnOpenGradeButtons(s.id, gradeKeyI, s.openGrades)}
             </div>`;
           });
           html += '</div>';
