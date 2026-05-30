@@ -928,7 +928,6 @@ function closeMobileMenu() {
 }
 
 function drawerSetYear(year) {
-  hideWelcome();
   setYear(year);
   // Show/hide variant sub-menus inside drawer
   document.querySelectorAll('.drawer-variants').forEach(d => d.style.display = 'none');
@@ -946,7 +945,6 @@ function drawerSetYear(year) {
 }
 
 function drawerSetVariant(examKey) {
-  hideWelcome();
   setVariant(examKey);
   document.querySelectorAll('.drawer-var-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.exam === examKey);
@@ -957,7 +955,6 @@ function drawerSetVariant(examKey) {
 }
 
 function drawerShowAnalytics() {
-  hideWelcome();
   showAnalytics();
   document.querySelectorAll('.drawer-year-btn').forEach(b => b.classList.remove('active'));
   updateMobileLabel('სტატისტიკა', null);
@@ -1010,61 +1007,46 @@ function pickAnalytics() {
 
 /* ════════════════════════════════════════════════════════════
    SWIPE GESTURES  (mobile touch support)
-   • Exam screen : swipe up/down or left/right → navigate questions
-   • Selection   : swipe right → open drawer
-   • Drawer      : swipe left  → close drawer
 ════════════════════════════════════════════════════════════ */
-
 (function initSwipe() {
   let tx = 0, ty = 0;
-  const MIN = 40;
-  const MAX_CROSS = 80;
+  const MIN = 40, MAX_CROSS = 80;
 
-  function onTouchStart(e) {
-    const t = e.touches[0];
-    tx = t.clientX;
-    ty = t.clientY;
-  }
+  document.addEventListener('touchstart', function(e) {
+    tx = e.touches[0].clientX;
+    ty = e.touches[0].clientY;
+  }, { passive: true });
 
-  function onTouchEnd(e) {
-    const t = e.changedTouches[0];
-    const dx = t.clientX - tx;
-    const dy = t.clientY - ty;
-    const adx = Math.abs(dx);
-    const ady = Math.abs(dy);
+  document.addEventListener('touchend', function(e) {
+    const dx = e.changedTouches[0].clientX - tx;
+    const dy = e.changedTouches[0].clientY - ty;
+    const adx = Math.abs(dx), ady = Math.abs(dy);
 
-    // ── Exam screen: up/down or left/right → navigate ──
+    // Exam screen: swipe up/down/left/right → navigate
     const examScreen = document.getElementById('exam-screen');
     if (examScreen && examScreen.style.display !== 'none') {
       if (e.target.closest('textarea')) return;
       if (ady > MIN && ady > adx && adx < MAX_CROSS) {
-        if (dy < 0) navigate(1);
-        else        navigate(-1);
+        dy < 0 ? navigate(1) : navigate(-1);
       } else if (adx > MIN && adx > ady && ady < MAX_CROSS) {
-        if (dx < 0) navigate(1);
-        else        navigate(-1);
+        dx < 0 ? navigate(1) : navigate(-1);
       }
       return;
     }
 
-    // ── Mobile drawer: swipe left to close ──
+    // Drawer open: swipe left to close
     const drawer = document.getElementById('mobile-drawer');
     if (drawer && drawer.classList.contains('open')) {
       if (dx < -MIN && ady < MAX_CROSS) closeMobileMenu();
       return;
     }
 
-    // ── Welcome or selection screen: swipe right to open drawer ──
+    // Welcome/selection: edge swipe right to open drawer
     const ham = document.getElementById('hamburger-btn');
-    if (ham && getComputedStyle(ham).display !== 'none') {
-      if (dx > MIN && ady < MAX_CROSS && tx < 40) {
-        openMobileMenu();
-      }
+    if (ham && getComputedStyle(ham).display !== 'none' && tx < 40) {
+      if (dx > MIN && ady < MAX_CROSS) openMobileMenu();
     }
-  }
-
-  document.addEventListener('touchstart', onTouchStart, { passive: true });
-  document.addEventListener('touchend',   onTouchEnd,   { passive: true });
+  }, { passive: true });
 })();
 
 /* ── Bootstrap ─────────────────────────────────────────────────────────── */
