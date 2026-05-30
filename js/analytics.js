@@ -122,9 +122,11 @@ function computeStats() {
   const totalWrong       = allMcq.filter(r => !r.isRight && r.selected !== null).length;
   const totalSkipped     = allMcq.filter(r => !r.isRight && r.selected === null).length;
   const totalOpenCorrect = sessions.reduce((acc, s) => acc + Object.values(s.openGrades||{}).filter(v=>v===true).length, 0);
+  const totalOpenWrong   = sessions.reduce((acc, s) => acc + Object.values(s.openGrades||{}).filter(v=>v===false).length, 0);
   const totalOpenTotal   = sessions.reduce((acc, s) => acc + Object.keys(s.openGrades||{}).length, 0);
   const totalAnswered    = totalMcqAnswered + totalOpenTotal;
   const totalCorrect     = totalMcqCorrect  + totalOpenCorrect;
+  const totalWrongAll    = totalWrong + totalOpenWrong;
 
   // Per-year (MCQ + open grades)
   const byYear = {};
@@ -355,7 +357,7 @@ function renderAnalytics() {
   </div>
   <div class="an-card"><div class="an-big-num">${sessions.length}</div><div class="an-card-lbl">გავლილი გამოცდა</div></div>
   <div class="an-card"><div class="an-big-num" style="color:var(--green)">${totalCorrect}</div><div class="an-card-lbl">სწორი პასუხი</div></div>
-  <div class="an-card"><div class="an-big-num" style="color:var(--red)">${totalWrong}</div><div class="an-card-lbl">არასწორი პასუხი</div></div>
+  <div class="an-card"><div class="an-big-num" style="color:var(--red)">${totalWrongAll}</div><div class="an-card-lbl">არასწორი პასუხი</div></div>
   <div class="an-card"><div class="an-big-num" style="color:var(--muted)">${totalSkipped}</div><div class="an-card-lbl">გამოტოვებული</div></div>
   <div class="an-card"><div class="an-big-num">${totalAnswered}</div><div class="an-card-lbl">სულ კითხვა</div></div>
   ${totalOpenTotal > 0 ? `<div class="an-card"><div class="an-big-num" style="color:var(--accent)">${totalOpenCorrect}/${totalOpenTotal}</div><div class="an-card-lbl">ღია ქულა</div></div>` : ''}
