@@ -1029,9 +1029,7 @@ function pickAnalytics() {
     const examScreen = document.getElementById('exam-screen');
     if (examScreen && examScreen.style.display !== 'none') {
       if (e.target.closest('textarea')) return;
-      if (ady > MIN && ady > adx && adx < MAX_CROSS) {
-        dy < 0 ? navigate(1) : navigate(-1);
-      } else if (adx > MIN && adx > ady && ady < MAX_CROSS) {
+      if (adx > MIN && adx > ady && ady < MAX_CROSS) {
         dx < 0 ? navigate(1) : navigate(-1);
       }
       return;

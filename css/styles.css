@@ -771,9 +771,73 @@ body {
 .an-mistake-stat  { font-size:var(--fs-xs); color:var(--muted); white-space:nowrap; }
 .an-mistake-ans   { font-size:var(--fs-xs); color:var(--muted); white-space:nowrap; margin-left:auto; }
 .an-mistake-ans strong { color:var(--text); }
-.an-reset-wrap { margin-top:clamp(24px,3vw,40px); padding-top:clamp(14px,2vw,22px); border-top:1.5px solid var(--border); display:flex; justify-content:flex-end; }
-.an-reset-btn  { background:#fff; color:var(--red); border:1.5px solid var(--red); padding:9px 20px; border-radius:6px; font-family:'Noto Sans Georgian',sans-serif; font-size:var(--fs-sm); font-weight:600; cursor:pointer; transition:background .15s,color .15s; }
-.an-reset-btn:hover { background:var(--red); color:#fff; }
+.an-reset-wrap {
+  margin-top: clamp(24px,3vw,40px);
+  padding-top: clamp(14px,2vw,22px);
+  border-top: 1.5px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.an-transfer-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.an-export-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  padding: 9px 18px;
+  border-radius: 6px;
+  font-family: 'Noto Sans Georgian', sans-serif;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .15s, transform .1s, box-shadow .15s;
+  box-shadow: 0 2px 8px rgba(27,60,112,.25);
+  white-space: nowrap;
+}
+.an-export-btn:hover  { background: #14306a; box-shadow: 0 4px 14px rgba(27,60,112,.35); }
+.an-export-btn:active { transform: scale(.97); }
+.an-import-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #fff;
+  color: var(--accent);
+  border: 1.5px solid var(--accent);
+  padding: 9px 18px;
+  border-radius: 6px;
+  font-family: 'Noto Sans Georgian', sans-serif;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .15s, color .15s, transform .1s;
+  white-space: nowrap;
+}
+.an-import-btn:hover  { background: var(--accent); color: #fff; }
+.an-import-btn:active { transform: scale(.97); }
+.an-reset-btn {
+  background: #fff;
+  color: var(--red);
+  border: 1.5px solid var(--red);
+  padding: 9px 20px;
+  border-radius: 6px;
+  font-family: 'Noto Sans Georgian', sans-serif;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .15s, color .15s;
+  white-space: nowrap;
+}
+.an-reset-btn:hover { background: var(--red); color: #fff; }
 
 /* ════════════════════════════════════════════════════════════
    RESPONSIVE BREAKPOINTS
