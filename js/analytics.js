@@ -119,14 +119,21 @@ function computeStats() {
   const totalCorrect  = allMcq.filter(r => r.isRight).length;
   const totalWrong    = allMcq.filter(r => !r.isRight && r.selected !== null).length;
   const totalSkipped  = allMcq.filter(r => !r.isRight && r.selected === null).length;
+  const totalOpenCorrect = sessions.reduce((acc, s) => acc + Object.values(s.openGrades||{}).filter(v=>v===true).length, 0);
+  const totalOpenTotal   = sessions.reduce((acc, s) => acc + Object.keys(s.openGrades||{}).length, 0);
 
-  // Per-year
+  // Per-year (MCQ + open grades)
   const byYear = {};
   sessions.forEach(s => {
-    if (!byYear[s.year]) byYear[s.year] = { sessions: 0, correct: 0, total: 0 };
+    const grades = s.openGrades || {};
+    const openCorrect = Object.values(grades).filter(v => v === true).length;
+    const openTotal   = Object.keys(grades).length;
+    if (!byYear[s.year]) byYear[s.year] = { sessions: 0, correct: 0, total: 0, openCorrect: 0, openTotal: 0 };
     byYear[s.year].sessions++;
-    byYear[s.year].correct += s.score;
-    byYear[s.year].total   += s.total;
+    byYear[s.year].correct     += s.score;
+    byYear[s.year].total       += s.total;
+    byYear[s.year].openCorrect += openCorrect;
+    byYear[s.year].openTotal   += openTotal;
   });
 
   // Mistake map
@@ -154,7 +161,7 @@ function computeStats() {
     .filter(m => m.wrongCount > 0)
     .sort((a, b) => b.wrongCount - a.wrongCount);
 
-  return { sessions, totalAnswered, totalCorrect, totalWrong, totalSkipped, byYear, mistakes };
+  return { sessions, totalAnswered, totalCorrect, totalWrong, totalSkipped, totalOpenCorrect, totalOpenTotal, byYear, mistakes };
 }
 
 /* ── Helpers ────────────────────────────────────────────────────────────── */
@@ -283,6 +290,7 @@ function analyticsGradeToggle(sessionId, key, val) {
   const total   = Object.keys(grades).length;
   const badge = document.getElementById(`an-open-score-${sessionId}`);
   if (badge) badge.textContent = `📝 ღია: ${correct} / ${total}`;
+  renderAnalytics();
 }
 
 function buildAnOpenGradeButtons(sessionId, key, savedGrades) {
@@ -305,6 +313,9 @@ function renderAnalytics() {
 
   if (!stats) {
     pane.innerHTML = `
+      <div class="an-topbar">
+        <button class="an-back-btn" onclick="showWelcome()">← მთავარი</button>
+      </div>
       <div class="an-empty">
         <div class="an-empty-icon">📊</div>
         <div class="an-empty-title">სტატისტიკა ჯერ არ არის</div>
@@ -317,12 +328,15 @@ function renderAnalytics() {
     return;
   }
 
-  const { sessions, totalAnswered, totalCorrect, totalWrong, totalSkipped, byYear, mistakes } = stats;
+  const { sessions, totalAnswered, totalCorrect, totalWrong, totalSkipped, totalOpenCorrect, totalOpenTotal, byYear, mistakes } = stats;
   const overallPct   = totalAnswered ? Math.round(totalCorrect / totalAnswered * 100) : null;
   const overallColor = pctColor(overallPct);
 
   // ── Overview ──
   let html = `
+<div class="an-topbar">
+  <button class="an-back-btn" onclick="showWelcome()">← მთავარი</button>
+</div>
 <div class="an-section-title">📊 საერთო სტატისტიკა</div>
 <div class="an-overview-grid">
   <div class="an-card an-card-accent">
@@ -335,6 +349,7 @@ function renderAnalytics() {
   <div class="an-card"><div class="an-big-num" style="color:var(--red)">${totalWrong}</div><div class="an-card-lbl">არასწორი პასუხი</div></div>
   <div class="an-card"><div class="an-big-num" style="color:var(--muted)">${totalSkipped}</div><div class="an-card-lbl">გამოტოვებული</div></div>
   <div class="an-card"><div class="an-big-num">${totalAnswered}</div><div class="an-card-lbl">სულ კითხვა</div></div>
+  ${totalOpenTotal > 0 ? `<div class="an-card"><div class="an-big-num" style="color:var(--accent)">${totalOpenCorrect}/${totalOpenTotal}</div><div class="an-card-lbl">ღია ქულა</div></div>` : ''}
 </div>`;
 
   // ── Per-year ──
@@ -342,11 +357,12 @@ function renderAnalytics() {
   Object.entries(byYear).sort().forEach(([yr, d]) => {
     const p = d.total ? Math.round(d.correct / d.total * 100) : null;
     const col = pctColor(p);
+    const openStr = d.openTotal > 0 ? ` · ღია: ${d.openCorrect}/${d.openTotal}` : '';
     html += `<div class="an-year-card">
       <div class="an-year-label">${yr}</div>
       <div class="an-year-pct" style="color:${col}">${p ?? '—'}%</div>
       ${pctBar(p, col)}
-      <div class="an-year-meta">${d.sessions} გამოცდა · ${d.correct}/${d.total}</div>
+      <div class="an-year-meta">${d.sessions} გამოცდა · ${d.correct}/${d.total}${openStr}</div>
     </div>`;
   });
   html += '</div>';

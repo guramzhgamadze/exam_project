@@ -1837,3 +1837,22 @@ body {
 .an-open-card-err { border-left: 3px solid var(--red); }
 .an-open-item-ok  { border-left: 3px solid var(--green); padding-left: 8px; }
 .an-open-item-err { border-left: 3px solid var(--red);   padding-left: 8px; }
+
+/* ── Analytics back button ──────────────────────────────────────────────── */
+.an-topbar {
+  display: flex;
+  align-items: center;
+  margin-bottom: 16px;
+}
+.an-back-btn {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-family: 'Noto Sans Georgian', sans-serif;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  cursor: pointer;
+  padding: 6px 0;
+  transition: opacity .15s;
+}
+.an-back-btn:hover { opacity: .7; }
