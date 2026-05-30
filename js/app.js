@@ -6,6 +6,7 @@
 let currentExamKey = null;   // active exam key
 let currentQIndex  = 0;      // 0-based index into questions array
 let answers        = {};     // { qId: choice }
+let openGrades     = {};     // { "qId" | "qId_itemId" : true/false }
 let submitted      = false;
 
 /* ── Multi-answer helper ─────────────────────────────────────────────────
@@ -191,6 +192,7 @@ function startExam(examKey) {
   currentExamKey = examKey;
   currentQIndex  = 0;
   answers        = {};
+  openGrades     = {};
   submitted      = false;
   const exam = EXAMS[examKey];
   secondsLeft    = exam.duration === '3 სთ 30 წთ' ? 210 * 60 : exam.duration === '3 სთ' ? 180 * 60 : 150 * 60;
@@ -782,6 +784,7 @@ function buildResultsScreen() {
       <div class="res-stat"><div class="res-num" style="color:var(--red)">${wrong}</div><div class="res-lbl">არასწორი</div></div>
       <div class="res-stat"><div class="res-num" style="color:var(--muted)">${skipped}</div><div class="res-lbl">გამოტოვ.</div></div>
       <div class="res-stat"><div class="res-num" style="color:${col}">${pct ?? '—'}%</div><div class="res-lbl">შედეგი</div></div>
+      ${exam.questions.some(q => q.type === 'open') ? `<div class="res-stat"><div class="res-num" id="res-open-score">0 / 0</div><div class="res-lbl">ღია ქულა</div></div>` : ''}
     </div>
     <div class="res-score-bar"><div class="res-score-fill" style="width:0;background:${col}" id="res-fill"></div></div>` :
     `<div class="res-no-key">გამოცდა დასრულდა.</div>`;
@@ -860,18 +863,175 @@ function buildTableResult(q, sel, ans) {
   return out + '</table>';
 }
 
+function gradeToggle(key, val) {
+  openGrades[key] = val;
+  const wrap = document.querySelector(`.open-grade-wrap[data-key="${key}"]`);
+  if (wrap) {
+    wrap.querySelectorAll('.open-grade-btn').forEach(b => b.classList.remove('active'));
+    const target = wrap.querySelector(`.open-grade-btn[data-val="${val}"]`);
+    if (target) target.classList.add('active');
+  }
+  recalcOpenSummary();
+}
+
+function recalcOpenSummary() {
+  const exam = EXAMS[currentExamKey];
+  const opens = exam.questions.filter(q => q.type === 'open');
+  let openCorrect = 0, openTotal = 0;
+  opens.forEach(q => {
+    const items = q.items || [];
+    const st = q.sub_type;
+    if (st === 'matching') {
+      items.forEach((_, ri) => {
+        openTotal++;
+        if (openGrades[q.id + '_match_' + ri] === true) openCorrect++;
+      });
+    } else if (st === 'selection') {
+      openTotal++;
+      if (openGrades[q.id + '_sel'] === true) openCorrect++;
+    } else if (!items.length) {
+      openTotal++;
+      if (openGrades[q.id] === true) openCorrect++;
+    } else {
+      items.forEach(item => {
+        openTotal++;
+        if (openGrades[q.id + '_' + item.id] === true) openCorrect++;
+      });
+    }
+  });
+  const el = document.getElementById('res-open-score');
+  if (el) el.textContent = openCorrect + ' / ' + openTotal;
+
+  opens.forEach(q => {
+    const card = document.getElementById('res-open-card-' + q.id);
+    if (!card) return;
+    const items = q.items || [];
+    let cardCorrect = 0, cardTotal = 0;
+    if (!items.length) {
+      cardTotal = 1;
+      if (openGrades[q.id] === true) cardCorrect = 1;
+    } else {
+      items.forEach(item => {
+        cardTotal++;
+        if (openGrades[q.id + '_' + item.id] === true) cardCorrect++;
+      });
+    }
+    const badge = card.querySelector('.res-open-grade-badge');
+    if (badge) {
+      const hasGrades = !items.length
+        ? openGrades[q.id] !== undefined
+        : items.some(item => openGrades[q.id + '_' + item.id] !== undefined);
+      badge.textContent = hasGrades ? cardCorrect + '/' + cardTotal + ' ქ.' : 'ღია';
+      badge.className = 'res-badge ' + (hasGrades
+        ? (cardCorrect === cardTotal ? 'res-badge-ok' : cardCorrect > 0 ? 'res-badge-partial' : 'res-badge-err')
+        : 'res-badge-open');
+    }
+  });
+}
+
+function buildOpenGradeButtons(key) {
+  return `<div class="open-grade-wrap" data-key="${key}">
+    <span class="open-grade-lbl">შეფასება:</span>
+    <button class="open-grade-btn open-grade-ok" data-val="true" onclick="gradeToggle('${key}', true)">✓ სწორი</button>
+    <button class="open-grade-btn open-grade-err" data-val="false" onclick="gradeToggle('${key}', false)">✗ არასწორი</button>
+  </div>`;
+}
+
 function buildOpenResultCard(q) {
   const items = q.items || [];
+  const st = q.sub_type;
   let body = '';
-  if (!items.length) {
+  let autoGraded = false;
+
+  // ── matching: auto-score by comparing selected cells to row.answer ──
+  if (st === 'matching') {
+    const cols = q.table_columns || [];
+    const stored = answers['match_' + q.id] || {};
+    let correct = 0, total = 0;
+    const rows = items.map((row, ri) => {
+      const correctCols = new Set((row.answer || '').split(',').map(s => s.trim()));
+      const selectedCols = new Set(stored[ri] || []);
+      let rowOk = correctCols.size > 0 &&
+        [...correctCols].every(c => selectedCols.has(c)) &&
+        [...selectedCols].every(c => correctCols.has(c));
+      total++;
+      if (rowOk) correct++;
+      const cells = cols.map(col => {
+        const isCorrect = correctCols.has(col);
+        const isSelected = selectedCols.has(col);
+        const cls = isCorrect && isSelected ? 'match-correct'
+                  : isCorrect ? 'match-show-correct'
+                  : isSelected ? 'match-wrong' : '';
+        return `<td class="res-match-cell ${cls}">${isSelected ? '✗' : ''}${isCorrect ? '✓' : ''}</td>`;
+      }).join('');
+      return `<tr><td class="match-row-num">${ri + 1}. ${row.text}</td>${cells}</tr>`;
+    }).join('');
+
+    const colHeads = cols.map(c => `<th>${c}</th>`).join('');
+    body = `<div class="res-match-wrap">
+      <table class="res-match-tbl">
+        <thead><tr><th></th>${colHeads}</tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <div class="res-auto-score">ავტომატური ქულა: <strong>${correct} / ${total}</strong></div>
+    </div>`;
+
+    // store in openGrades as fractional (correct out of total items)
+    for (let ri = 0; ri < items.length; ri++) {
+      const correctCols = new Set((items[ri].answer || '').split(',').map(s => s.trim()));
+      const selectedCols = new Set((stored[ri] || []));
+      const rowOk = correctCols.size > 0 &&
+        [...correctCols].every(c => selectedCols.has(c)) &&
+        [...selectedCols].every(c => correctCols.has(c));
+      openGrades[q.id + '_match_' + ri] = rowOk;
+    }
+    autoGraded = true;
+  }
+
+  // ── selection: auto-score by comparing selected items to item[0].answer ──
+  else if (st === 'selection') {
+    const correctNums = new Set((((items[0] || {}).answer || '')).split(',').map(s => s.trim()).filter(Boolean));
+    const selected = new Set((answers['sel_' + q.id] || []).map(String));
+    const allNums = [];
+    // collect all nums from s3/selection grid
+    document.querySelectorAll(`[id^="scell_${currentExamKey}_${q.num}_"]`).forEach(el => {
+      allNums.push(el.id.split('_').pop());
+    });
+    // fallback: derive from items if DOM not available
+    const numList = allNums.length ? allNums : [...Array(20)].map((_,i) => String(i+1));
+    let correct = 0, total = correctNums.size;
+    const cells = numList.map(num => {
+      const isCorrect = correctNums.has(num);
+      const isSelected = selected.has(num);
+      if (isCorrect && isSelected) correct++;
+      const cls = isCorrect && isSelected ? 'sel-correct'
+                : isCorrect ? 'sel-show-correct'
+                : isSelected ? 'sel-wrong' : '';
+      return `<span class="res-sel-cell ${cls}">${num}</span>`;
+    }).join('');
+
+    body = `<div class="res-sel-wrap">
+      <div class="res-sel-grid">${cells}</div>
+      <div class="res-auto-score">ავტომატური ქულა: <strong>${correct} / ${total}</strong></div>
+    </div>`;
+    openGrades[q.id + '_sel'] = correct === total && total > 0;
+    autoGraded = true;
+  }
+
+  // ── plain single open (no items) ──
+  else if (!items.length) {
     const typed = answers['open_' + q.id] || '';
     body = `<div class="res-open-row">
       <div class="res-open-col"><div class="res-open-lbl">თქვენი პასუხი</div>
         <div class="res-open-typed ${typed ? '' : 'res-open-empty'}">${typed || '— არ შეგიყვანიათ —'}</div></div>
       ${q.single_answer ? `<div class="res-open-col"><div class="res-open-lbl">სწორი პასუხი</div>
         <div class="res-open-model">${q.single_answer}</div></div>` : ''}
-    </div>`;
-  } else {
+    </div>
+    ${buildOpenGradeButtons(q.id)}`;
+  }
+
+  // ── fill_in / sub-items with typed text ──
+  else {
     body = items.map(item => {
       const typed = answers['open_' + q.id + '_' + item.id] || '';
       return `<div class="res-open-item">
@@ -883,15 +1043,17 @@ function buildOpenResultCard(q) {
           ${item.answer ? `<div class="res-open-col"><div class="res-open-lbl">სწორი პასუხი</div>
             <div class="res-open-model">${item.answer}</div></div>` : ''}
         </div>
+        ${buildOpenGradeButtons(q.id + '_' + item.id)}
       </div>`;
     }).join('');
   }
+
   return `
-    <div class="res-q-card res-q-open">
+    <div class="res-q-card res-q-open" id="res-open-card-${q.id}">
       <div class="res-q-head">
         <span class="res-q-num open-num">${q.num}</span>
         <span class="res-q-text-short">${q.text.slice(0,80)}${q.text.length>80?'…':''}</span>
-        <span class="res-badge res-badge-open">ღია</span>
+        <span class="res-badge ${autoGraded ? 'res-badge-auto' : 'res-badge-open'} res-open-grade-badge">${autoGraded ? 'ავტო' : 'ღია'}</span>
       </div>
       <details class="res-details">
         <summary>პასუხების ნახვა</summary>
@@ -1029,7 +1191,9 @@ function pickAnalytics() {
     const examScreen = document.getElementById('exam-screen');
     if (examScreen && examScreen.style.display !== 'none') {
       if (e.target.closest('textarea')) return;
-      if (adx > MIN && adx > ady && ady < MAX_CROSS) {
+      if (ady > MIN && ady > adx && adx < MAX_CROSS) {
+        dy < 0 ? navigate(1) : navigate(-1);
+      } else if (adx > MIN && adx > ady && ady < MAX_CROSS) {
         dx < 0 ? navigate(1) : navigate(-1);
       }
       return;

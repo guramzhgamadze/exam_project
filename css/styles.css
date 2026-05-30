@@ -1,3 +1,39 @@
+
+/* ── Open question grading buttons ─────────────────────────────────────── */
+.open-grade-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border);
+  flex-wrap: wrap;
+}
+.open-grade-lbl {
+  font-size: var(--fs-sm);
+  color: var(--muted);
+  font-family: 'Noto Sans Georgian', sans-serif;
+  margin-right: 2px;
+}
+.open-grade-btn {
+  padding: 5px 14px;
+  border-radius: 5px;
+  border: 1.5px solid var(--border);
+  background: #fff;
+  font-family: 'Noto Sans Georgian', sans-serif;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .15s, color .15s, border-color .15s;
+}
+.open-grade-ok          { color: var(--green); border-color: var(--green); }
+.open-grade-ok:hover    { background: var(--green); color: #fff; }
+.open-grade-ok.active   { background: var(--green); color: #fff; }
+.open-grade-err         { color: var(--red); border-color: var(--red); }
+.open-grade-err:hover   { background: var(--red); color: #fff; }
+.open-grade-err.active  { background: var(--red); color: #fff; }
+.res-badge-partial      { background: #fff3cd; color: #856404; border: 1px solid #ffc107; padding: 2px 8px; border-radius: 4px; font-size: var(--fs-xs); font-weight: 700; }
+
 /* ============================================================
    styles.css — Biology National Exam 2020–2025
    Fluid responsive: scales from 360 px → 1920 px
@@ -1736,3 +1772,27 @@ body {
   cursor: default;
   opacity: 0.8;
 }
+
+/* ── Auto-graded open question results ─────────────────────────────────── */
+.res-badge-auto       { background:#e8f4fd; color:#1a6fa8; border:1px solid #90c8f0; padding:2px 8px; border-radius:4px; font-size:var(--fs-xs); font-weight:700; }
+.res-auto-score       { margin-top:10px; font-family:'Noto Sans Georgian',sans-serif; font-size:var(--fs-sm); color:var(--muted); }
+.res-auto-score strong { color:var(--accent); }
+
+.res-match-wrap       { overflow-x:auto; }
+.res-match-tbl        { border-collapse:collapse; font-family:'Noto Sans Georgian',sans-serif; font-size:var(--fs-sm); width:100%; }
+.res-match-tbl th,
+.res-match-tbl td     { border:1px solid var(--border); padding:6px 10px; text-align:center; }
+.res-match-tbl th     { background:var(--bg); font-weight:600; }
+.res-match-cell       { min-width:36px; }
+.res-match-cell.match-correct     { background:#d4edda; color:var(--green); font-weight:700; }
+.res-match-cell.match-show-correct{ background:#fff3cd; color:#856404; }
+.res-match-cell.match-wrong       { background:#f8d7da; color:var(--red); }
+
+.res-sel-wrap         { }
+.res-sel-grid         { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+.res-sel-cell         { display:inline-flex; align-items:center; justify-content:center;
+                        width:36px; height:36px; border-radius:6px; border:1.5px solid var(--border);
+                        font-family:'Noto Sans Georgian',sans-serif; font-size:var(--fs-sm); font-weight:600; }
+.res-sel-cell.sel-correct      { background:#d4edda; border-color:var(--green); color:var(--green); }
+.res-sel-cell.sel-show-correct { background:#fff3cd; border-color:#ffc107; color:#856404; }
+.res-sel-cell.sel-wrong        { background:#f8d7da; border-color:var(--red); color:var(--red); }
