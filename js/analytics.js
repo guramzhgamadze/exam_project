@@ -97,6 +97,8 @@ function recordSession(examKey, mcqAnswers, openAnswers) {
     score:       nCorrect,
     total:       scored.length,
     pct:         scored.length ? Math.round(nCorrect / scored.length * 100) : null,
+    mcqScore:    nCorrect,
+    mcqTotal:    scored.length,
   };
 
   const stats = loadStats();
@@ -114,13 +116,15 @@ function computeStats() {
   const { sessions } = loadStats();
   if (!sessions.length) return null;
 
-  const allMcq      = sessions.flatMap(s => s.mcqResults.filter(r => r.correct !== null));
-  const totalAnswered = allMcq.length;
-  const totalCorrect  = allMcq.filter(r => r.isRight).length;
-  const totalWrong    = allMcq.filter(r => !r.isRight && r.selected !== null).length;
-  const totalSkipped  = allMcq.filter(r => !r.isRight && r.selected === null).length;
+  const allMcq        = sessions.flatMap(s => s.mcqResults.filter(r => r.correct !== null));
+  const totalMcqAnswered = allMcq.length;
+  const totalMcqCorrect  = allMcq.filter(r => r.isRight).length;
+  const totalWrong       = allMcq.filter(r => !r.isRight && r.selected !== null).length;
+  const totalSkipped     = allMcq.filter(r => !r.isRight && r.selected === null).length;
   const totalOpenCorrect = sessions.reduce((acc, s) => acc + Object.values(s.openGrades||{}).filter(v=>v===true).length, 0);
   const totalOpenTotal   = sessions.reduce((acc, s) => acc + Object.keys(s.openGrades||{}).length, 0);
+  const totalAnswered    = totalMcqAnswered + totalOpenTotal;
+  const totalCorrect     = totalMcqCorrect  + totalOpenCorrect;
 
   // Per-year (MCQ + open grades)
   const byYear = {};
@@ -286,10 +290,15 @@ function analyticsGradeToggle(sessionId, key, val) {
     if (target) target.classList.add('active');
   }
   const grades = s.openGrades;
-  const correct = Object.values(grades).filter(v => v === true).length;
-  const total   = Object.keys(grades).length;
-  const badge = document.getElementById(`an-open-score-${sessionId}`);
-  if (badge) badge.textContent = `📝 ღია: ${correct} / ${total}`;
+  const openCorrect = Object.values(grades).filter(v => v === true).length;
+  const openTotal   = Object.keys(grades).length;
+  // Recompute combined pct and save back
+  const mcqCorrect = s.mcqScore ?? s.score;
+  const mcqTotal   = s.mcqTotal ?? s.total;
+  s.score = mcqCorrect + openCorrect;
+  s.total = mcqTotal   + openTotal;
+  s.pct   = s.total ? Math.round(s.score / s.total * 100) : null;
+  saveStats(stats);
   renderAnalytics();
 }
 
@@ -355,7 +364,9 @@ function renderAnalytics() {
   // ── Per-year ──
   html += `<div class="an-section-title" style="margin-top:28px">📅 წლების მიხედვით</div><div class="an-year-grid">`;
   Object.entries(byYear).sort().forEach(([yr, d]) => {
-    const p = d.total ? Math.round(d.correct / d.total * 100) : null;
+    const combinedCorrect = d.correct + d.openCorrect;
+    const combinedTotal   = d.total   + d.openTotal;
+    const p = combinedTotal ? Math.round(combinedCorrect / combinedTotal * 100) : null;
     const col = pctColor(p);
     const openStr = d.openTotal > 0 ? ` · ღია: ${d.openCorrect}/${d.openTotal}` : '';
     html += `<div class="an-year-card">
@@ -372,7 +383,11 @@ function renderAnalytics() {
 
   [...sessions].reverse().forEach((s, idx) => {
     const sid   = `sess-${s.id}`;
-    const p     = s.pct;
+    const openCorrect = Object.values(s.openGrades||{}).filter(v=>v===true).length;
+    const openTotal   = Object.keys(s.openGrades||{}).length;
+    const combinedCorrect = (s.mcqScore ?? s.score) + openCorrect;
+    const combinedTotal   = (s.mcqTotal ?? s.total) + openTotal;
+    const p = combinedTotal ? Math.round(combinedCorrect / combinedTotal * 100) : s.pct;
     const col   = pctColor(p);
     const hasOpen = s.openResults && s.openResults.some(r =>
       (r.items.length ? r.items.some(it => it.typed) : r.typed)
@@ -390,7 +405,7 @@ function renderAnalytics() {
   <div class="an-sess-head" onclick="toggleSession('${sid}')">
     <span class="an-exam-tag">${s.label}</span>
     <span class="an-date">${fmtDate(s.date)}</span>
-    <span class="an-sess-score">${s.score} / ${s.total}</span>
+    <span class="an-sess-score">${combinedCorrect} / ${combinedTotal}</span>
     ${scoreDelta}
     <span class="an-sess-pct" style="color:${col}">${p ?? '—'}%</span>
     ${recheckBadge}
