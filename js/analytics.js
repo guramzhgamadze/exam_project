@@ -167,7 +167,7 @@ function computeStats() {
     .filter(m => m.wrongCount > 0)
     .sort((a, b) => b.wrongCount - a.wrongCount);
 
-  return { sessions, totalAnswered, totalCorrect, totalWrong, totalSkipped, totalOpenCorrect, totalOpenTotal, byYear, mistakes };
+  return { sessions, totalAnswered, totalCorrect, totalWrong, totalWrongAll, totalSkipped, totalOpenCorrect, totalOpenTotal, byYear, mistakes };
 }
 
 /* ── Helpers ────────────────────────────────────────────────────────────── */
@@ -339,7 +339,7 @@ function renderAnalytics() {
     return;
   }
 
-  const { sessions, totalAnswered, totalCorrect, totalWrong, totalSkipped, totalOpenCorrect, totalOpenTotal, byYear, mistakes } = stats;
+  const { sessions, totalAnswered, totalCorrect, totalWrong, totalWrongAll, totalSkipped, totalOpenCorrect, totalOpenTotal, byYear, mistakes } = stats;
   const overallPct   = totalAnswered ? Math.round(totalCorrect / totalAnswered * 100) : null;
   const overallColor = pctColor(overallPct);
 
