@@ -928,6 +928,7 @@ function closeMobileMenu() {
 }
 
 function drawerSetYear(year) {
+  hideWelcome();
   setYear(year);
   // Show/hide variant sub-menus inside drawer
   document.querySelectorAll('.drawer-variants').forEach(d => d.style.display = 'none');
@@ -945,6 +946,7 @@ function drawerSetYear(year) {
 }
 
 function drawerSetVariant(examKey) {
+  hideWelcome();
   setVariant(examKey);
   document.querySelectorAll('.drawer-var-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.exam === examKey);
@@ -955,6 +957,7 @@ function drawerSetVariant(examKey) {
 }
 
 function drawerShowAnalytics() {
+  hideWelcome();
   showAnalytics();
   document.querySelectorAll('.drawer-year-btn').forEach(b => b.classList.remove('active'));
   updateMobileLabel('სტატისტიკა', null);
