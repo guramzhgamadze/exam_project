@@ -928,6 +928,7 @@ function closeMobileMenu() {
 }
 
 function drawerSetYear(year) {
+  hideWelcome();
   setYear(year);
   // Show/hide variant sub-menus inside drawer
   document.querySelectorAll('.drawer-variants').forEach(d => d.style.display = 'none');
@@ -945,6 +946,7 @@ function drawerSetYear(year) {
 }
 
 function drawerSetVariant(examKey) {
+  hideWelcome();
   setVariant(examKey);
   document.querySelectorAll('.drawer-var-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.exam === examKey);
@@ -955,6 +957,7 @@ function drawerSetVariant(examKey) {
 }
 
 function drawerShowAnalytics() {
+  hideWelcome();
   showAnalytics();
   document.querySelectorAll('.drawer-year-btn').forEach(b => b.classList.remove('active'));
   updateMobileLabel('სტატისტიკა', null);
@@ -1013,9 +1016,9 @@ function pickAnalytics() {
 ════════════════════════════════════════════════════════════ */
 
 (function initSwipe() {
-  let tx = 0, ty = 0;          // touch start coords
-  const MIN = 40;              // minimum px to count as a swipe
-  const MAX_CROSS = 80;        // max perpendicular movement allowed
+  let tx = 0, ty = 0;
+  const MIN = 40;
+  const MAX_CROSS = 80;
 
   function onTouchStart(e) {
     const t = e.touches[0];
@@ -1033,17 +1036,13 @@ function pickAnalytics() {
     // ── Exam screen: up/down or left/right → navigate ──
     const examScreen = document.getElementById('exam-screen');
     if (examScreen && examScreen.style.display !== 'none') {
-      // Don't steal scroll inside textareas or long open-question cards
       if (e.target.closest('textarea')) return;
-
       if (ady > MIN && ady > adx && adx < MAX_CROSS) {
-        // vertical swipe
-        if (dy < 0) navigate(1);   // swipe up   → next
-        else        navigate(-1);  // swipe down → prev
+        if (dy < 0) navigate(1);
+        else        navigate(-1);
       } else if (adx > MIN && adx > ady && ady < MAX_CROSS) {
-        // horizontal swipe
-        if (dx < 0) navigate(1);   // swipe left  → next
-        else        navigate(-1);  // swipe right → prev
+        if (dx < 0) navigate(1);
+        else        navigate(-1);
       }
       return;
     }
@@ -1055,15 +1054,10 @@ function pickAnalytics() {
       return;
     }
 
-    // ── Selection / welcome screen: swipe right to open drawer ──
-    const selScreen = document.getElementById('selection-screen');
-    const welScreen = document.getElementById('welcome-screen');
-    const onSel = selScreen && selScreen.style.display !== 'none';
-    const onWel = welScreen && welScreen.style.display !== 'none';
-    if ((onSel || onWel) && dx > MIN && ady < MAX_CROSS) {
-      // Only open drawer when on mobile (drawer button exists and is visible)
-      const ham = document.getElementById('hamburger-btn');
-      if (ham && getComputedStyle(ham).display !== 'none') {
+    // ── Welcome or selection screen: swipe right to open drawer ──
+    const ham = document.getElementById('hamburger-btn');
+    if (ham && getComputedStyle(ham).display !== 'none') {
+      if (dx > MIN && ady < MAX_CROSS && tx < 40) {
         openMobileMenu();
       }
     }
