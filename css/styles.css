@@ -1856,3 +1856,28 @@ body {
   transition: opacity .15s;
 }
 .an-back-btn:hover { opacity: .7; }
+
+/* ── Open question mistake cards ────────────────────────────────────────── */
+.an-open-tag {
+  display: inline-block;
+  background: #e8f4fd;
+  color: #1a6fa8;
+  border: 1px solid #90c8f0;
+  border-radius: 3px;
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  padding: 1px 5px;
+  margin-left: 4px;
+  vertical-align: middle;
+}
+.an-mistake-open-body {
+  padding: 10px 12px;
+  border-top: 1px solid var(--border);
+  font-family: 'Noto Sans Georgian', sans-serif;
+  font-size: var(--fs-sm);
+}
+.an-open-q-text {
+  color: var(--text);
+  margin-bottom: 4px;
+  line-height: 1.5;
+}

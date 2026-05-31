@@ -142,23 +142,80 @@ function computeStats() {
     byYear[s.year].openTotal   += openTotal;
   });
 
-  // Mistake map
+  // Skipped open items (empty answer, ungraded or no answer typed)
+  let totalOpenSkipped = 0;
+  sessions.forEach(s => {
+    (s.openResults || []).forEach(r => {
+      if (!r.items.length) {
+        const typed = (r.typed || '').trim();
+        if (!typed) totalOpenSkipped++;
+      } else {
+        r.items.forEach(item => {
+          const typed = (item.typed || '').trim();
+          if (!typed) totalOpenSkipped++;
+        });
+      }
+    });
+  });
+
+  // Mistake map (MCQ + open wrong answers)
   const mistakeMap = {};
   sessions.forEach(s => {
+    // MCQ mistakes
     s.mcqResults.forEach(r => {
       if (r.correct === null) return;
       if (!mistakeMap[r.qId]) {
         mistakeMap[r.qId] = {
           qId: r.qId, num: r.num, text: r.text,
-          label: s.label, wrongCount: 0, total: 0, examples: []
+          label: s.label, wrongCount: 0, total: 0, examples: [], isOpen: false
         };
       }
       mistakeMap[r.qId].total++;
       if (!r.isRight) {
         mistakeMap[r.qId].wrongCount++;
-        if (mistakeMap[r.qId].examples.length < 3) {
+        if (mistakeMap[r.qId].examples.length < 3)
           mistakeMap[r.qId].examples.push({ selected: r.selected, correct: r.correct, date: s.date });
+      }
+    });
+
+    // Open mistakes (graded ✗)
+    const grades = s.openGrades || {};
+    (s.openResults || []).forEach(r => {
+      if (!r.items.length) {
+        const key = r.qId;
+        if (grades[key] === undefined) return; // ungraded — skip
+        if (!mistakeMap[key]) {
+          mistakeMap[key] = {
+            qId: key, num: r.num, text: r.text,
+            label: s.label, wrongCount: 0, total: 0, examples: [], isOpen: true,
+            modelAnswer: r.modelAnswer || null
+          };
         }
+        mistakeMap[key].total++;
+        if (grades[key] === false) {
+          mistakeMap[key].wrongCount++;
+          if (mistakeMap[key].examples.length < 3)
+            mistakeMap[key].examples.push({ typed: r.typed, modelAnswer: r.modelAnswer, date: s.date });
+        }
+      } else {
+        r.items.forEach(item => {
+          const key = r.qId + '_' + item.id;
+          if (grades[key] === undefined) return;
+          const mapKey = key;
+          if (!mistakeMap[mapKey]) {
+            mistakeMap[mapKey] = {
+              qId: mapKey, num: r.num, text: r.text + ' [' + item.id + '] ' + item.text,
+              label: s.label, wrongCount: 0, total: 0, examples: [], isOpen: true,
+              modelAnswer: item.modelAnswer || null
+            };
+          }
+          mistakeMap[mapKey].total++;
+          if (grades[key] === false) {
+            mistakeMap[mapKey].wrongCount++;
+            if (mistakeMap[mapKey].examples.length < 3)
+              mistakeMap[mapKey].examples.push({ typed: item.typed, modelAnswer: item.modelAnswer, date: s.date });
+          }
+        });
       }
     });
   });
@@ -167,7 +224,8 @@ function computeStats() {
     .filter(m => m.wrongCount > 0)
     .sort((a, b) => b.wrongCount - a.wrongCount);
 
-  return { sessions, totalAnswered, totalCorrect, totalWrong, totalWrongAll, totalSkipped, totalOpenCorrect, totalOpenTotal, byYear, mistakes };
+  const totalSkippedAll = totalSkipped + totalOpenSkipped;
+  return { sessions, totalAnswered, totalCorrect, totalWrong, totalWrongAll, totalSkipped: totalSkippedAll, totalOpenCorrect, totalOpenTotal, byYear, mistakes };
 }
 
 /* ── Helpers ────────────────────────────────────────────────────────────── */
@@ -284,24 +342,54 @@ function analyticsGradeToggle(sessionId, key, val) {
   if (!s) return;
   if (!s.openGrades) s.openGrades = {};
   s.openGrades[key] = val;
+
+  // Always derive from mcqScore/mcqTotal — never from the mutable score/total
+  const grades     = s.openGrades;
+  const openCorrect = Object.values(grades).filter(v => v === true).length;
+  const openTotal   = Object.keys(grades).length;
+  const mcqCorrect  = s.mcqScore !== undefined ? s.mcqScore : (s.score - openCorrect); // safe fallback
+  const mcqTotal    = s.mcqTotal !== undefined ? s.mcqTotal : (s.total - openTotal);
+
+  // Ensure mcqScore/mcqTotal are persisted so future calls are safe
+  s.mcqScore = mcqCorrect;
+  s.mcqTotal = mcqTotal;
+  s.score    = mcqCorrect + openCorrect;
+  s.total    = mcqTotal   + openTotal;
+  s.pct      = s.total ? Math.round(s.score / s.total * 100) : null;
   saveStats(stats);
+
+  // ── Surgical DOM updates — no full re-render ──
+
+  // Grade buttons
   const wrap = document.querySelector(`.an-open-grade-wrap[data-sid="${sessionId}"][data-key="${key}"]`);
   if (wrap) {
     wrap.querySelectorAll('.an-open-grade-btn').forEach(b => b.classList.remove('active'));
     const target = wrap.querySelector(`.an-open-grade-btn[data-val="${val}"]`);
     if (target) target.classList.add('active');
   }
-  const grades = s.openGrades;
-  const openCorrect = Object.values(grades).filter(v => v === true).length;
-  const openTotal   = Object.keys(grades).length;
-  // Recompute combined pct and save back
-  const mcqCorrect = s.mcqScore ?? s.score;
-  const mcqTotal   = s.mcqTotal ?? s.total;
-  s.score = mcqCorrect + openCorrect;
-  s.total = mcqTotal   + openTotal;
-  s.pct   = s.total ? Math.round(s.score / s.total * 100) : null;
-  saveStats(stats);
-  renderAnalytics();
+
+  // Card border colour
+  const card = wrap && wrap.closest('.an-open-card, .an-open-item');
+  if (card) {
+    card.classList.remove('an-open-card-ok', 'an-open-card-err', 'an-open-item-ok', 'an-open-item-err');
+    const isItem = card.classList.contains('an-open-item');
+    card.classList.add(val ? (isItem ? 'an-open-item-ok' : 'an-open-card-ok')
+                            : (isItem ? 'an-open-item-err' : 'an-open-card-err'));
+  }
+
+  // Session score / pct
+  const scoreEl = document.getElementById(`an-sess-score-${sessionId}`);
+  if (scoreEl) scoreEl.textContent = `${s.score} / ${s.total}`;
+  const pctEl = document.getElementById(`an-sess-pct-${sessionId}`);
+  if (pctEl) {
+    const col = pctColor(s.pct);
+    pctEl.style.color = col;
+    pctEl.textContent = `${s.pct ?? '—'}%`;
+  }
+
+  // Open score badge
+  const badge = document.getElementById(`an-open-score-${sessionId}`);
+  if (badge) badge.textContent = `📝 ღია: ${openCorrect} / ${openTotal}`;
 }
 
 function buildAnOpenGradeButtons(sessionId, key, savedGrades) {
@@ -407,9 +495,9 @@ function renderAnalytics() {
   <div class="an-sess-head" onclick="toggleSession('${sid}')">
     <span class="an-exam-tag">${s.label}</span>
     <span class="an-date">${fmtDate(s.date)}</span>
-    <span class="an-sess-score">${combinedCorrect} / ${combinedTotal}</span>
+    <span class="an-sess-score" id="an-sess-score-${s.id}">${combinedCorrect} / ${combinedTotal}</span>
     ${scoreDelta}
-    <span class="an-sess-pct" style="color:${col}">${p ?? '—'}%</span>
+    <span class="an-sess-pct" id="an-sess-pct-${s.id}" style="color:${col}">${p ?? '—'}%</span>
     ${recheckBadge}
     ${s.openResults && s.openResults.length ? `<span class="an-open-score-badge" id="an-open-score-${s.id}">📝 ღია: ${Object.values(s.openGrades||{}).filter(v=>v===true).length} / ${Object.keys(s.openGrades||{}).length || '?' }</span>` : ''}
     <span class="an-sess-toggle" id="tog-${sid}">▶</span>
@@ -508,15 +596,23 @@ function renderAnalytics() {
     mistakes.slice(0, 30).forEach((m, i) => {
       const errPct = Math.round(m.wrongCount / m.total * 100);
       const col    = pctColor(100 - errPct);
+      const body   = m.isOpen
+        ? `<div class="an-mistake-open-body">
+            <div class="an-open-lbl">კითხვა</div>
+            <div class="an-open-q-text">${escHtml(m.text)}</div>
+            ${m.modelAnswer ? `<div class="an-open-lbl" style="margin-top:8px">სწორი პასუხი</div><div class="an-open-model">${escHtml(m.modelAnswer)}</div>` : ''}
+            ${m.examples.length ? `<div class="an-open-lbl" style="margin-top:8px">თქვენი პასუხები</div>${m.examples.map(e => `<div class="an-open-typed">${escHtml(e.typed||'—')}</div>`).join('')}` : ''}
+          </div>`
+        : renderMistakeQuestion(m);
       html += `<div class="an-mistake-card">
         <div class="an-mistake-head">
           <span class="an-mistake-rank">#${i + 1}</span>
-          <span class="an-mistake-ref">${m.label} · კ.${m.num}</span>
+          <span class="an-mistake-ref">${m.label} · კ.${m.num}${m.isOpen ? ' <span class="an-open-tag">ღია</span>' : ''}</span>
           <span class="an-mistake-count" style="color:var(--red)">${m.wrongCount}× შეცდომა</span>
           <span class="an-bar-inline-wrap" style="flex:1;max-width:120px">${pctBar(100 - errPct, col)}</span>
           <span class="an-mistake-stat">${m.total - m.wrongCount}/${m.total} სწორი</span>
         </div>
-        ${renderMistakeQuestion(m)}
+        ${body}
       </div>`;
     });
     html += '</div>';
