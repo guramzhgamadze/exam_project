@@ -1146,12 +1146,12 @@ const EXAMS = {
       {
         "id": "40.1",
         "text": "მშობლების გენოტიპები;",
-        "answer": "მდედრი — X^A X^a, მამრი — X^A Y (1 ქულა)"
+        "answer": "მდედრი — X<sup>A</sup> X<sup>a</sup>, მამრი — X<sup>A</sup> Y (1 ქულა)"
       },
       {
         "id": "40.2",
         "text": "მშობლების გამეტები;",
-        "answer": "მდედრი — X^A, X^a; მამრი — X^A, Y (1 ქულა)"
+        "answer": "მდედრი — X<sup>A</sup>, X<sup>a</sup>; მამრი — X<sup>A</sup>, Y (1 ქულა)"
       },
       {
         "id": "40.3",
@@ -5180,7 +5180,7 @@ const EXAMS = {
     ],
     "choices": null,
     "table": null,
-    "answer": "მდედრობითი X^A Y x მამრობითი X^a X^a",
+    "answer": "მდედრობითი X<sup>A</sup> Y x მამრობითი X<sup>a</sup> X<sup>a</sup>",
     "items": [
       {"id": "54.a", "text": "a", "answer": "6"},
       {"id": "54.b", "text": "b", "answer": "1"},
@@ -5209,7 +5209,7 @@ const EXAMS = {
     ],
     "choices": null,
     "table": null,
-    "answer": "მდედრობითი X^A Y; მამრობითი X^A X^a",
+    "answer": "მდედრობითი X<sup>A</sup> Y; მამრობითი X<sup>A</sup> X<sup>a</sup>",
     "items": [
       {"id": "55.1", "text": "სამშენებლო", "answer": "ა"},
       {"id": "55.2", "text": "რეგულატორული", "answer": "დ, ე"},
@@ -5361,12 +5361,12 @@ const EXAMS = {
       {
         "id": "60.2",
         "text": "2. მშობლების გენოტიპები;",
-        "answer": "მდედრობითი X^A Y x მამრობითი X^a X^a"
+        "answer": "მდედრობითი X<sup>A</sup> Y x მამრობითი X<sup>a</sup> X<sup>a</sup>"
       },
       {
         "id": "60.3",
         "text": "3. F<sub>1</sub> თაობაში მიღებული ინდივიდების გენოტიპები.",
-        "answer": "მდედრობითი X^A Y; მამრობითი X^A X^a"
+        "answer": "მდედრობითი X<sup>A</sup> Y; მამრობითი X<sup>A</sup> X<sup>a</sup>"
       }
     ],
     "single_answer": null,
@@ -8180,12 +8180,12 @@ const EXAMS = {
       {
         "id": "64.1",
         "text": "მშობლების გენოტიპები;",
-        "answer": "X^D X^d და X^d Y"
+        "answer": "X<sup>D</sup> X<sup>d</sup> და X<sup>d</sup> Y"
       },
       {
         "id": "64.2",
         "text": "გოგონათა შესაძლო გენოტიპები;",
-        "answer": "X^D X^d და X^d X^d"
+        "answer": "X<sup>D</sup> X<sup>d</sup> და X<sup>d</sup> X<sup>d</sup>"
       },
       {
         "id": "64.3",
@@ -11015,17 +11015,17 @@ const EXAMS = {
       {
         "id": "50.1",
         "text": "მშობლების გენოტიპები;",
-        "answer": "♀X^A Y x ♂X^a X^a"
+        "answer": "♀X<sup>A</sup> Y x ♂X<sup>a</sup> X<sup>a</sup>"
       },
       {
         "id": "50.2",
         "text": "პირველ თაობაში მიღებული ინდივიდების გენოტიპები;",
-        "answer": "♀X^a Y და ♂X^A X^a"
+        "answer": "♀X<sup>a</sup> Y და ♂X<sup>A</sup> X<sup>a</sup>"
       },
       {
         "id": "50.3",
         "text": "მეორე თაობაში მიღებული ყველა ჰიბრიდის გენოტიპი.",
-        "answer": "♀X^A Y, ♀X^a Y, ♂X^A X^a და ♂X^a X^a"
+        "answer": "♀X<sup>A</sup> Y, ♀X<sup>a</sup> Y, ♂X<sup>A</sup> X<sup>a</sup> და ♂X<sup>a</sup> X<sup>a</sup>"
       }
     ],
     "single_answer": null,
@@ -12634,17 +12634,17 @@ const EXAMS = {
       {
         "id": "55.1",
         "text": "მშობლების გენოტიპები;",
-        "answer": "♀X^A Y x ♂X^a X^a"
+        "answer": "♀X<sup>A</sup> Y x ♂X<sup>a</sup> X<sup>a</sup>"
       },
       {
         "id": "55.2",
         "text": "F<sub>1</sub>-ში მიღებული ინდივიდების გენოტიპები;",
-        "answer": "♀X^a Y და ♂X^A X^a"
+        "answer": "♀X<sup>a</sup> Y და ♂X<sup>A</sup> X<sup>a</sup>"
       },
       {
         "id": "55.3",
         "text": "F<sub>2</sub>-ში გაჩენილი დედლების გენოტიპები და ფენოტიპები;",
-        "answer": "♀X^A Y - ჭრელი, ♀X^a Y - ყავისფერი"
+        "answer": "♀X<sup>A</sup> Y - ჭრელი, ♀X<sup>a</sup> Y - ყავისფერი"
       },
       {
         "id": "55.4",
