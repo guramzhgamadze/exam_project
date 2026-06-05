@@ -1064,26 +1064,26 @@ const EXAMS = {
       {
         "id": "38.1",
         "text": "რამდენ ადენინიან და თიმინიან ნუკლეოტიდს შეიცავს მოცემული დნმ-ს ფრაგმენტის ორივე ჭიმი?",
-        "answer": null
+        "answer": "30 x 2 = 60"
       },
       {
         "id": "38.2",
         "text": "რამდენ გუანინიან და ციტოზინიან ნუკლეოტიდს შეიცავს მოცემული დნმ-ს ფრაგმენტის ორივე ჭიმი?",
-        "answer": null
+        "answer": "45 x 2 = 90"
       },
       {
         "id": "38.3",
         "text": "სულ რამდენ ნუკლეოტიდს შეიცავს ამ დნმ-ს ფრაგმენტის ერთი ჭიმი?",
-        "answer": null
+        "answer": "(60 + 90) / 2 = 75"
       },
       {
         "id": "38.4",
         "text": "რამდენ ამინომჟავას შეიცავს ამ ფრაგმენტით კოდირებული ცილა?",
-        "answer": null
+        "answer": "75/3 = 25"
       }
     ],
     "single_answer": null,
-    "note": "თითოეული ნაწილი 1 ქულა; მაქსიმალური 4 ქულა"
+    "note": null,
   },
   {
     "id": "q2010-1-39",
@@ -2551,22 +2551,22 @@ const EXAMS = {
     "stmts": null,
     "choices": null,
     "table": null,
-    "answer": null,
+    "answer": "P. AAbb x aaBB",
     "items": [
       {
         "id": "59.1",
         "text": "განსაზღვრეთ პირველი თაობის ჰიბრიდთა გენოტიპები;",
-        "answer": null
+        "answer": "Aa x Aa"
       },
       {
         "id": "59.2",
         "text": "დაადგინეთ მეორე თაობაში მიდებული ჰიბრიდთა გენოტიპები;",
-        "answer": null
+        "answer": "AA, Aa, aa"
       },
       {
         "id": "59.3",
         "text": "დაადგინეთ შავი, თეთრი და ცისფერი ფრინველის გამოჩეკვის ალბათობა.",
-        "answer": null
+        "answer": "25% შავი, 50% ცისფერი, 25% თეთრი"
       }
     ],
     "single_answer": null,
@@ -2582,22 +2582,22 @@ const EXAMS = {
     "stmts": null,
     "choices": null,
     "table": null,
-    "answer": null,
+    "answer": "aabb",
     "items": [
       {
         "id": "60.1",
         "text": "მიდებულ ჰიბრიდებში განსაზღვრეთ დათიშვის თანაფარდობა გენოტიპების მიხედვით;",
-        "answer": null
+        "answer": "1 AADd: 2 AaDd: 1AADd: 2Aadd: 1aaDd: 1aadd"
       },
       {
         "id": "60.2",
         "text": "მიდებულ ჰიბრიდებში განსაზღვრეთ დათიშვის თანაფარდობა ფენოტიპების მიხედვით;",
-        "answer": null
+        "answer": "3 წითელი : 5 თეთრი"
       },
       {
         "id": "60.3",
         "text": "როგორი გენოტიპის ჰიბრიდი უნდა შეაჯვარდეს ორმაგ რეცესივ (aadd) ინდივიდს, რომ თანაბარი რაოდენობით წარმოიქმნას ვითელი და თეთრთესლიანი მცენარეები?",
-        "answer": null
+        "answer": "AADd"
       }
     ],
     "single_answer": null,
@@ -2613,17 +2613,17 @@ const EXAMS = {
     "stmts": null,
     "choices": null,
     "table": null,
-    "answer": null,
+    "answer": "F2: AABB, AABb, AAbb, AaBB, AaBb, Aabb, aaBB, aaBb, aabb",
     "items": [
       {
         "id": "61.1",
         "text": "როგორი ალბათობითაა მოსალოდნელი უსინათლო შვილის გაჩენა ასეთ ოჯახში?",
-        "answer": null
+        "answer": "7/16"
       },
       {
         "id": "61.2",
         "text": "გამოწერეთ ყველა ის გენოტიპი, რომლებიც შეიძლება ჰქონდეთ ქმნდეთ უსინათლო ბავშვებს.",
-        "answer": null
+        "answer": "AAbb, Aabb, aaBB, aaBb, aabb"
       }
     ],
     "single_answer": null,
@@ -3788,7 +3788,7 @@ const EXAMS = {
     ],
     "choices": null,
     "table": null,
-    "answer": null,
+    "answer": "AABb; AaBb",
     "items": [
       {"id": "55.1", "text": "თიროქსინი", "answer": "ბ"},
       {"id": "55.2", "text": "ადრენალინი", "answer": "ა"},
@@ -3818,7 +3818,7 @@ const EXAMS = {
     ],
     "choices": null,
     "table": null,
-    "answer": null,
+    "answer": "ავტოსომ-რეცესიული",
     "items": [
       {"id": "56.1", "text": "I", "answer": "2"},
       {"id": "56.2", "text": "II", "answer": "3"},
@@ -3847,7 +3847,7 @@ const EXAMS = {
     ],
     "choices": null,
     "table": null,
-    "answer": null,
+    "answer": "II – 1, 2 – მამრობითი Aa და მდედრობითი aa",
     "items": [
       {"id": "57.1", "text": "I", "answer": "1"},
       {"id": "57.2", "text": "II", "answer": "4"},
@@ -3876,7 +3876,7 @@ const EXAMS = {
     ],
     "choices": null,
     "table": null,
-    "answer": null,
+    "answer": "ა - თ = 350 ნუკლეოტიდური წყვილი; ბ - გ = 400 ნუკლეოტიდური წყვილი",
     "items": [
       {"id": "58.1", "text": "I", "answer": "1"},
       {"id": "58.2", "text": "II", "answer": "5"},
@@ -3897,7 +3897,7 @@ const EXAMS = {
     "stmts": null,
     "choices": null,
     "table": null,
-    "answer": null,
+    "answer": "ი-რნმ = 750 ნუკლეოტიდი",
     "items": [
       {
         "id": "59.1",
@@ -3923,7 +3923,7 @@ const EXAMS = {
     "stmts": null,
     "choices": null,
     "table": null,
-    "answer": null,
+    "answer": "750 : 3 = 250 ამინომჟავა",
     "items": [
       {
         "id": "60.1",
@@ -3954,7 +3954,7 @@ const EXAMS = {
     "stmts": null,
     "choices": null,
     "table": null,
-    "answer": null,
+    "answer": "II – 4 და 5",
     "items": [
       {
         "id": "61.1",
@@ -3964,12 +3964,12 @@ const EXAMS = {
       {
         "id": "61.2",
         "text": "წარმოადგინეთ მეტყველი შვილის <strong>ყველა შესაძლო</strong> გენოტიპი;",
-        "answer": null
+        "answer": "სქესობრივი შეჭიდულობა"
       },
       {
         "id": "61.3",
         "text": "განსაზღვრეთ ყრუ-მუნჯი შვილების ყველა შესაძლო გენოტიპი.",
-        "answer": null
+        "answer": "AAbb; Aabb; aaBb; aabb"
       }
     ],
     "single_answer": null,
@@ -5180,7 +5180,7 @@ const EXAMS = {
     ],
     "choices": null,
     "table": null,
-    "answer": null,
+    "answer": "მდედრობითი X^A Y x მამრობითი X^a X^a",
     "items": [
       {"id": "54.a", "text": "a", "answer": "6"},
       {"id": "54.b", "text": "b", "answer": "1"},
@@ -5209,7 +5209,7 @@ const EXAMS = {
     ],
     "choices": null,
     "table": null,
-    "answer": null,
+    "answer": "მდედრობითი X^A Y; მამრობითი X^A X^a",
     "items": [
       {"id": "55.1", "text": "სამშენებლო", "answer": "ა"},
       {"id": "55.2", "text": "რეგულატორული", "answer": "დ, ე"},
@@ -5237,7 +5237,7 @@ const EXAMS = {
     ],
     "choices": null,
     "table": null,
-    "answer": null,
+    "answer": "სიმბიოზი",
     "items": [
       {"id": "56.1", "text": "გარეთა", "answer": "ბ"},
       {"id": "56.2", "text": "შუა", "answer": "ე"},
@@ -5258,22 +5258,22 @@ const EXAMS = {
     "stmts": null,
     "choices": null,
     "table": null,
-    "answer": null,
+    "answer": "პარაზიტიზმი",
     "items": [
       {
         "id": "57.1",
         "text": "1. რამდენ a — T და g — c წყვილს შეიცავს გამოყოფილი გენი?",
-        "answer": null
+        "answer": "კონკურენცია"
       },
       {
         "id": "57.2",
         "text": "2. რამდენი ნუკლეოტიდისგან შედგება ამ გენზე სინთეზირებული ინფორმაციული რნმ?",
-        "answer": null
+        "answer": "ი-რნმ = 750 ნუკლეოტიდი"
       },
       {
         "id": "57.3",
         "text": "3. რამდენი ამინომჟავური ნაშთისგან შედგება ამ გენის მიერ კოდირებული ცილა?",
-        "answer": null
+        "answer": "750 : 3 = 250 ამინომჟავა"
       }
     ],
     "single_answer": null,
@@ -5294,17 +5294,17 @@ const EXAMS = {
       {
         "id": "58.1",
         "text": "1. მშობლების გენოტიპები;",
-        "answer": null
+        "answer": "P. AAbb x aaBB"
       },
       {
         "id": "58.2",
         "text": "2. რომელი გენოტიპის მცენარე უნდა შეუჯვარდეს F<sub>1</sub>-ს, რომ თანაბარი რაოდენობით ჩამოყალიბდეს ოთხი განსხვავებული ფენოტიპური ჯგუფი?",
-        "answer": null
+        "answer": "aabb"
       },
       {
         "id": "58.3",
         "text": "3. ჩაწერეთ F<sub>2</sub> თაობაში მიღებული ყველა ჰიბრიდის გენოტიპი.",
-        "answer": null
+        "answer": "F2: AABB, AABb, AAbb, AaBB, AaBb, Aabb, aaBB, aaBb, aabb"
       }
     ],
     "single_answer": null,
@@ -5325,17 +5325,17 @@ const EXAMS = {
       {
         "id": "59.1",
         "text": "1. დაავადების მემკვიდრეობის ტიპი;",
-        "answer": null
+        "answer": "ავტოსომ-რეცესიული"
       },
       {
         "id": "59.2",
         "text": "2. II — 1, 2 ცოლქმრული წყვილის გენოტიპები;",
-        "answer": null
+        "answer": "II – 1, 2 – მამრობითი Aa და მდედრობითი aa"
       },
       {
         "id": "59.3",
         "text": "3. ცოლქმრული წყვილებიდან რომელია ორივე ჰეტეროზიგოტული.",
-        "answer": null
+        "answer": "II – 4 და 5"
       }
     ],
     "single_answer": null,
@@ -5356,17 +5356,17 @@ const EXAMS = {
       {
         "id": "60.1",
         "text": "1. რომელი შეფერილობა დომინირებს;",
-        "answer": null
+        "answer": "სქესობრივი შეჭიდულობა"
       },
       {
         "id": "60.2",
         "text": "2. მშობლების გენოტიპები;",
-        "answer": null
+        "answer": "მდედრობითი X^A Y x მამრობითი X^a X^a"
       },
       {
         "id": "60.3",
         "text": "3. F<sub>1</sub> თაობაში მიღებული ინდივიდების გენოტიპები.",
-        "answer": null
+        "answer": "მდედრობითი X^A Y; მამრობითი X^A X^a"
       }
     ],
     "single_answer": null,
@@ -8080,7 +8080,7 @@ const EXAMS = {
       {"id": "59.1", "text": "ნერვული", "answer": "ბ"},
       {"id": "59.2", "text": "კუნთოვანი", "answer": "ა, ე"},
       {"id": "59.3", "text": "შემაერთებელი", "answer": "გ, დ"},
-      {"id": "59.4", "text": "ეპითელური", "answer": null}
+      {"id": "59.4", "text": "ეპითელური", "answer": "X"}
     ],
     "single_answer": null,
     "note": null,
@@ -8102,17 +8102,17 @@ const EXAMS = {
       {
         "id": "60.1",
         "text": "ადამიანსა და ნაწლავის ჩხირის ბაქტერიებს შორის;",
-        "answer": null
+        "answer": "სიმბიოზი"
       },
       {
         "id": "60.2",
         "text": "ადამიანსა და პათოგენურ მიკრობებს შორის;",
-        "answer": null
+        "answer": "პარაზიტიზმი"
       },
       {
         "id": "60.3",
         "text": "ნაწლავის ჩხირის ბაქტერიებსა და პათოგენურ მიკრობებს შორის.",
-        "answer": null
+        "answer": "კონკურენცია"
       }
     ],
     "single_answer": null,
@@ -8180,17 +8180,17 @@ const EXAMS = {
       {
         "id": "64.1",
         "text": "მშობლების გენოტიპები;",
-        "answer": null
+        "answer": "X^D X^d და X^d Y"
       },
       {
         "id": "64.2",
         "text": "გოგონათა შესაძლო გენოტიპები;",
-        "answer": null
+        "answer": "X^D X^d და X^d X^d"
       },
       {
         "id": "64.3",
         "text": "ჯანმრთელი ვაჟის დაბადების ალბათობა.",
-        "answer": null
+        "answer": "შვილების საერთო რაოდენობიდან 1/4 (25%) ან ვაჟების საერთო რაოდენობიდან 1/2 (50%)"
       }
     ],
     "single_answer": null,
@@ -8213,22 +8213,22 @@ const EXAMS = {
       {
         "id": "65.1",
         "text": "მშობლების გენოტიპები;",
-        "answer": null
+        "answer": "AADd და aaDd"
       },
       {
         "id": "65.2",
         "text": "F<sub>1</sub>-ის ჰიბრიდთა გენოტიპი;",
-        "answer": null
+        "answer": "AaDd"
       },
       {
         "id": "65.3",
         "text": "F<sub>2</sub>-ში ტუჩიან ვარდისფერყვავილიან ჰიბრიდთა გენოტიპები;",
-        "answer": null
+        "answer": "AADd და AaDd"
       },
       {
         "id": "65.4",
         "text": "F<sub>2</sub>-ში ტუჩიან ყვითელყვავილიან ჰიბრიდთა წარმოქმნის ალბათობა.",
-        "answer": null
+        "answer": "3/16"
       }
     ],
     "single_answer": null,
@@ -11043,7 +11043,7 @@ const EXAMS = {
     "table": null,
     "answer": null,
     "items": [],
-    "single_answer": null,
+    "single_answer": "გლუკოზაში (C6H12O6) აღმოჩნდება <sup>18</sup>O იზოტოპი, გამოყოფილ ჟანგბადში (O2) კი 16O იზოტოპი",
     "note": null
   },
   {
@@ -11102,7 +11102,7 @@ const EXAMS = {
       {
         "id": "53.2",
         "text": "F<sub>2</sub>-ის ჰომოზიგოტურ ჰიბრიდთა გენოტიპების ყველა ვარიანტი;",
-        "answer": null
+        "answer": "AABB, AAbb, aaBB, aabb"
       },
       {
         "id": "53.3",
@@ -11125,7 +11125,7 @@ const EXAMS = {
     "table": null,
     "answer": null,
     "items": [],
-    "single_answer": null,
+    "single_answer": "მასტაბილიზებელი გადარჩევა, რომელიც კურდღლების პოპულაციაში ადრე ჩამოყალიბებული ნიშნების შენარჩუნებას გამოიწვევს",
     "note": null
   },
   {
@@ -11176,7 +11176,7 @@ const EXAMS = {
     "table": null,
     "answer": null,
     "items": [],
-    "single_answer": null,
+    "single_answer": "B ზონაში გვხვდება ლეიკოციტები და თრომბოციტები. ლეიკოციტები ახორციელებენ ფაგოციტოზის პროცესს და ანტიგენების საწინააღმდეგოდ გამოიმუშავებენ ანტისხეულებს. თრომბოციტები მონაწილეობენ სისხლის შედედებაში",
     "note": null
   },
   {
@@ -14158,27 +14158,27 @@ const EXAMS = {
       {
         "id": "51.1",
         "text": "1 — გაადვილებული დიფუზია (მოცემული ნიმუშად)",
-        "answer": null
+        "answer": "2 – დიფუზია"
       },
       {
         "id": "51.2",
         "text": "2 — ?",
-        "answer": null
+        "answer": "3 – ოსმოსი"
       },
       {
         "id": "51.3",
         "text": "3 — ?",
-        "answer": null
+        "answer": "4 – აქტიური ტრანსპორტი"
       },
       {
         "id": "51.4",
         "text": "4 — ?",
-        "answer": null
+        "answer": "5 – გაადვილებული დიფუზია"
       },
       {
         "id": "51.5",
         "text": "5 — ?",
-        "answer": null
+        "answer": "1 – (ყველა სტრიქონი სწორად შევსებული)"
       }
     ],
     "single_answer": null,
@@ -14214,12 +14214,12 @@ const EXAMS = {
       {
         "id": "53.I",
         "text": "I:",
-        "answer": null
+        "answer": "აროგენეზი"
       },
       {
         "id": "53.II",
         "text": "II:",
-        "answer": null
+        "answer": "ალოგენეზი"
       }
     ],
     "single_answer": null,
@@ -14276,21 +14276,21 @@ const EXAMS = {
       {
         "id": "55.I",
         "text": "I — ევოლუციის მიმართულება",
-        "answer": null
+        "answer": "ალოგენეზი"
       },
       {
         "id": "55.II",
         "text": "II — შეგუებულობის ფორმა",
-        "answer": null
+        "answer": "მფარველობითი შეფერილობა"
       },
       {
         "id": "55.III",
         "text": "III — ბუნებრივი გადარჩევის ფორმა",
-        "answer": null
+        "answer": "მამოძრავებელი გადარჩევა"
       }
     ],
     "single_answer": null,
-    "note": null
+    "note": null,
   },
   {
     "id": "q2019-1-56",
