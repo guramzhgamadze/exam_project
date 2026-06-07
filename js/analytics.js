@@ -436,11 +436,11 @@ function renderAnalytics() {
     ${pctBar(overallPct, overallColor)}
   </div>
   <div class="an-card"><div class="an-big-num">${sessions.length}</div><div class="an-card-lbl">გავლილი გამოცდა</div></div>
-  <div class="an-card"><div class="an-big-num" style="color:var(--green)">${totalCorrect}</div><div class="an-card-lbl">სწორი პასუხი</div></div>
-  <div class="an-card"><div class="an-big-num" style="color:var(--red)">${totalWrongAll}</div><div class="an-card-lbl">არასწორი პასუხი</div></div>
-  <div class="an-card"><div class="an-big-num" style="color:var(--muted)">${totalSkipped}</div><div class="an-card-lbl">გამოტოვებული</div></div>
-  <div class="an-card"><div class="an-big-num">${totalAnswered}</div><div class="an-card-lbl">სულ კითხვა</div></div>
-  ${totalOpenTotal > 0 ? `<div class="an-card"><div class="an-big-num" style="color:var(--accent)">${totalOpenCorrect}/${totalOpenTotal}</div><div class="an-card-lbl">ღია ქულა</div></div>` : ''}
+  <div class="an-card"><div class="an-big-num" style="color:var(--green)">${totalCorrect}</div><div class="an-card-lbl">მიღებული ქულა</div></div>
+  <div class="an-card"><div class="an-big-num" style="color:var(--red)">${totalWrongAll}</div><div class="an-card-lbl">დაკარგული ქულა</div></div>
+  <div class="an-card"><div class="an-big-num" style="color:var(--muted)">${totalSkipped}</div><div class="an-card-lbl">გამოტოვ. ტესტური</div></div>
+  <div class="an-card"><div class="an-big-num">${totalAnswered}</div><div class="an-card-lbl">სულ ქულა</div></div>
+  ${totalOpenTotal > 0 ? `<div class="an-card"><div class="an-big-num" style="color:var(--accent)">${totalOpenCorrect}/${totalOpenTotal}</div><div class="an-card-lbl">ღია პასუხი (სწორი)</div></div>` : ''}
 </div>
 ${incompleteNote}`;
 
@@ -1069,50 +1069,58 @@ function deleteAttempt(id, year) {
 // Year-card / history entry → review (most recent session for that year handled by reviewYear)
 function reviewSession(sessionId) { renderResultReview(sessionId, false, false); }
 
-// Count combined totals from a saved session against the full question bank.
-// Open questions count every gradable unit (so the denominator = whole test).
-// Untyped+ungraded open units silently count as wrong; typed+ungraded units
-// drive the "please grade" notice.
+// Score a saved session against the full question bank, in POINTS (q.score),
+// so the denominator equals the exam's real point total (e.g. 70) rather than
+// the number of answers — some questions carry several answers for one point.
+// Open questions are graded per answer; a question's earned points scale with
+// the share of its answers marked correct. Worked examples are not scored.
+// Untyped+ungraded answers count as wrong; typed+ungraded ones drive the notice.
 function computeReviewTotals(s, exam) {
   const mcqByQ = {}; (s.mcqResults || []).forEach(r => { mcqByQ[r.qId] = r; });
   const openByQ = {}; (s.openResults || []).forEach(r => { openByQ[r.qId] = r; });
   const grades = s.openGrades || {};
 
   let correct = 0, wrong = 0, skipped = 0;
+  let mcqPoints = 0, mcqEarned = 0;
   exam.questions.filter(q => q.type === 'mcq' && q.answer).forEach(q => {
+    const sc = q.score || 1;
+    mcqPoints += sc;
     const sel = (mcqByQ[q.id] || {}).selected;
-    if (mcqIsCorrect(sel, q.answer)) correct++;
+    if (mcqIsCorrect(sel, q.answer)) { correct++; mcqEarned += sc; }
     else if (sel) wrong++;
     else skipped++;
   });
 
-  let openUnits = 0, openGraded = 0, openCorrect = 0, ungradedTyped = 0;
+  let openPoints = 0, openEarned = 0, openUnits = 0, openGraded = 0, openCorrect = 0, ungradedTyped = 0;
   exam.questions.filter(q => q.type === 'open').forEach(q => {
+    const sc = q.score || 0;
+    openPoints += sc;
     const r = openByQ[q.id] || { items: [] };
-    const units = (!r.items || !r.items.length)
+    const rawUnits = (!r.items || !r.items.length)
       ? [{ key: q.id, typed: (r.typed || '').trim(), example: false }]
       : r.items.map(it => {
           const full = (q.items || []).find(x => String(x.id) === String(it.id)) || {};
           return { key: q.id + '_' + it.id, typed: (it.typed || '').trim(), example: !!full.example };
         });
+    const units = rawUnits.filter(u => !u.example);   // worked examples are given, not scored
+    let qCorrect = 0;
     units.forEach(u => {
-      if (u.example) return;   // worked examples are given, not scored
       openUnits++;
       const g = grades[u.key];
-      if (g !== undefined) { openGraded++; if (g === true) openCorrect++; }
+      if (g !== undefined) { openGraded++; if (g === true) { openCorrect++; qCorrect++; } }
       else if (u.typed) ungradedTyped++;
     });
+    if (units.length) openEarned += (qCorrect / units.length) * sc;
   });
 
-  const mcqGradable = correct + wrong + skipped;
-  const totalRight  = correct + openCorrect;
-  const totalQ      = mcqGradable + openUnits;
-  const totalWrong  = totalQ - totalRight;
-  const finalPct    = totalQ ? Math.round(totalRight / totalQ * 100) : null;
+  const totalQ     = mcqPoints + openPoints;            // exam point total (== sum of q.score)
+  const totalRight = Math.round((mcqEarned + openEarned) * 2) / 2;   // NAEC uses half-point steps
+  const totalWrong = Math.round((totalQ - totalRight) * 2) / 2;
+  const finalPct   = totalQ ? Math.round(totalRight / totalQ * 100) : null;
   // "complete" = every typed open answer has been graded (empty answers are
   // treated as wrong automatically, so they don't block completion).
-  const complete    = ungradedTyped === 0;
-  return { correct, wrong, skipped, mcqGradable, openUnits, openGraded, openCorrect,
+  const complete   = ungradedTyped === 0;
+  return { correct, wrong, skipped, openUnits, openGraded, openCorrect,
            ungradedTyped, totalRight, totalQ, totalWrong, finalPct, complete };
 }
 
@@ -1170,9 +1178,9 @@ function renderResultReview(sessionId, isLive, keepView) {
 
   const summaryHtml = `
     <div class="res-summary-grid">
-      <div class="res-stat"><div class="res-num" id="res-rev-total">${t.totalQ}</div><div class="res-lbl">სულ კითხვა</div></div>
-      <div class="res-stat"><div class="res-num" style="color:var(--green)" id="res-rev-right">${t.totalRight}</div><div class="res-lbl">სწორი</div></div>
-      <div class="res-stat"><div class="res-num" style="color:var(--red)" id="res-rev-wrong">${t.totalWrong}</div><div class="res-lbl">${t.complete ? 'არასწორი' : 'არასწორი / შეუმოწმ.'}</div></div>
+      <div class="res-stat"><div class="res-num" id="res-rev-total">${t.totalQ}</div><div class="res-lbl">სულ ქულა</div></div>
+      <div class="res-stat"><div class="res-num" style="color:var(--green)" id="res-rev-right">${t.totalRight}</div><div class="res-lbl">მიღებული</div></div>
+      <div class="res-stat"><div class="res-num" style="color:var(--red)" id="res-rev-wrong">${t.totalWrong}</div><div class="res-lbl">${t.complete ? 'დაკარგული' : 'დაკარგ. / შეუმოწმ.'}</div></div>
       <div class="res-stat">${markCell}</div>
     </div>
     <div class="res-score-bar"><div class="res-score-fill" style="width:0;background:${col}" id="rev-fill"></div></div>

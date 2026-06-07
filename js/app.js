@@ -126,6 +126,8 @@ function buildSelectionScreen() {
   Object.entries(EXAMS).forEach(([key, exam]) => {
     const mcqs  = exam.questions.filter(q => q.type === 'mcq').length;
     const opens = exam.questions.filter(q => q.type === 'open').length;
+    // Real point total from the questions (a few old papers have a stale maxScore field).
+    const maxScore = exam.questions.reduce((a, q) => a + (q.score || 0), 0) || exam.maxScore;
     const div   = document.createElement('div');
     div.className = 'cover-pane';
     div.id = 'cover-' + key;
@@ -156,7 +158,7 @@ function buildSelectionScreen() {
             <p>თქვენ წინაშეა საგამოცდო ტესტის ელექტრონული ბუკლეტი.</p>
             <p>ყურადღებით წაიკითხეთ დავალებათა ტიპების აღწერა.</p>
             <div class="naec-instr-stats">
-              <p><strong>ტესტის მაქსიმალური ქულაა - ${exam.maxScore}.</strong></p>
+              <p><strong>ტესტის მაქსიმალური ქულაა - ${maxScore}.</strong></p>
               <p><strong>ტესტის შესასრულებლად გეძლევათ ${exam.duration}.</strong></p>
               <p><strong>თითოეული დავალების ნომრის წინ ფრჩხილებში მითითებულია დავალების ქულა.</strong></p>
               <p class="naec-good-luck"><strong>გისურვებთ წარმატებას!</strong></p>
