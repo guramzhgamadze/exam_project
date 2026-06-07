@@ -39,7 +39,7 @@ function recordSession(examKey, mcqAnswers, openAnswers) {
       text:     q.text.slice(0, 120),
       selected: mcqAnswers[q.id] ?? null,
       correct:  q.answer ?? null,
-      isRight:  q.answer ? mcqAnswers[q.id] === q.answer : null,
+      isRight:  q.answer ? mcqIsCorrect(mcqAnswers[q.id], q.answer) : null,
     }));
 
   // Open results

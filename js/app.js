@@ -189,6 +189,104 @@ function buildSelectionScreen() {
 }
 
 /* ════════════════════════════════════════════════════════════
+   AUTOSAVE — persist in-progress exam so it survives a reload
+═══════════════════════════════════════════════════════════════ */
+const PROGRESS_KEY = 'biology_exam_progress_v1';
+
+function saveProgress() {
+  if (!currentExamKey || submitted) return;
+  try {
+    localStorage.setItem(PROGRESS_KEY, JSON.stringify({
+      examKey:     currentExamKey,
+      qIndex:      currentQIndex,
+      answers,
+      secondsLeft,
+      savedAt:     Date.now(),
+    }));
+  } catch (e) {
+    console.warn('Could not save progress:', e);
+  }
+}
+
+function loadProgress() {
+  try {
+    const raw = localStorage.getItem(PROGRESS_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function clearProgress() {
+  try { localStorage.removeItem(PROGRESS_KEY); } catch {}
+}
+
+function resumeExam() {
+  const p = loadProgress();
+  if (!p || !EXAMS[p.examKey]) { clearProgress(); renderResumeBanner(); return; }
+
+  const exam = EXAMS[p.examKey];
+  currentExamKey = p.examKey;
+  currentQIndex  = Math.min(Math.max(p.qIndex || 0, 0), exam.questions.length - 1);
+  answers        = p.answers || {};
+  submitted      = false;
+  secondsLeft    = (typeof p.secondsLeft === 'number' && p.secondsLeft > 0)
+    ? p.secondsLeft
+    : (exam.duration === '3 სთ 30 წთ' ? 210 * 60 : exam.duration === '3 სთ' ? 180 * 60 : 150 * 60);
+
+  document.getElementById('exam-topbar-date').textContent = exam.date;
+  document.getElementById('exam-title-bar').textContent   = exam.title;
+
+  const welcome = document.getElementById('welcome-screen');
+  if (welcome) welcome.style.display = 'none';
+  document.getElementById('selection-screen').style.display = 'none';
+  document.getElementById('results-screen').style.display   = 'none';
+  document.getElementById('exam-screen').style.display      = 'flex';
+
+  startTimer();
+  renderQuestion();
+  document.addEventListener('keydown', handleKey);
+}
+
+function discardProgress() {
+  if (!confirm('დაუსრულებელი გამოცდის წაშლა?')) return;
+  clearProgress();
+  renderResumeBanner();
+}
+
+// Resume banner shown on the welcome screen when a saved exam exists
+function renderResumeBanner() {
+  const card = document.querySelector('.wlc-card');
+  if (!card) return;
+  const old = document.getElementById('wlc-resume-banner');
+  if (old) old.remove();
+
+  const p = loadProgress();
+  if (!p || !EXAMS[p.examKey]) return;
+
+  const exam   = EXAMS[p.examKey];
+  const mcqs   = exam.questions.filter(q => q.type === 'mcq');
+  const done   = mcqs.filter(q => (p.answers || {})[q.id] !== undefined).length;
+
+  const banner = document.createElement('div');
+  banner.id = 'wlc-resume-banner';
+  banner.className = 'wlc-resume-banner';
+  banner.innerHTML = `
+    <div class="wlc-resume-info">
+      <span class="wlc-resume-icon">⏳</span>
+      <div class="wlc-resume-text">
+        <div class="wlc-resume-title">დაუსრულებელი გამოცდა — ${exam.year} · ${exam.variantLabel}</div>
+        <div class="wlc-resume-sub">გაგრძელება იქიდან, სადაც გაჩერდით · ${done}/${mcqs.length} ტესტური შევსებული</div>
+      </div>
+    </div>
+    <div class="wlc-resume-actions">
+      <button class="wlc-resume-btn" onclick="resumeExam()">▶ გაგრძელება</button>
+      <button class="wlc-resume-discard" onclick="discardProgress()">წაშლა</button>
+    </div>`;
+  card.insertBefore(banner, card.firstChild);
+}
+
+/* ════════════════════════════════════════════════════════════
    EXAM MODE
 ═══════════════════════════════════════════════════════════════ */
 
@@ -208,11 +306,13 @@ function startExam(examKey) {
 
   startTimer();
   renderQuestion();
+  saveProgress();
   document.addEventListener('keydown', handleKey);
 }
 
 function exitExam() {
   if (!confirm('გასვლა? პროგრესი შეინახება.')) return;
+  saveProgress();
   stopTimer();
   document.removeEventListener('keydown', handleKey);
   document.getElementById('exam-screen').style.display    = 'none';
@@ -226,6 +326,7 @@ function startTimer() {
   timerInterval = setInterval(() => {
     secondsLeft--;
     updateTimerDisplay();
+    if (secondsLeft % 5 === 0) saveProgress();   // persist remaining time periodically
     if (secondsLeft <= 0) { clearInterval(timerInterval); submitExam(true); }
   }, 1000);
 }
@@ -250,6 +351,7 @@ function navigate(dir) {
   if (next < 0 || next >= exam.questions.length) return;
   currentQIndex = next;
   renderQuestion();
+  saveProgress();
 }
 
 function goToQuestion(idx) {
@@ -257,6 +359,7 @@ function goToQuestion(idx) {
   if (idx < 0 || idx >= exam.questions.length) return;
   currentQIndex = idx;
   renderQuestion();
+  saveProgress();
 }
 
 function handleKey(e) {
@@ -457,11 +560,13 @@ function renderMatchingGrid(q) {
   out += '<th class="match-th-empty"></th>';
   cols.forEach(c => out += `<th class="match-col-head">${c}</th>`);
   out += '</tr></thead><tbody>';
+  const matchState = answers['match_' + q.id] || {};
   rows.forEach((row, ri) => {
     out += `<tr><td class="match-row-num">${ri+1}</td>`;
     cols.forEach((col, ci) => {
       const cid = `mcell_${ek}_${q.num}_r${ri}_c${ci}`;
-      out += `<td class="match-cell" id="${cid}" onclick="toggleMatchCell('${cid}','${q.id}',${ri},'${col}')">` +
+      const active = (matchState[ri] || []).includes(col) ? ' match-cell-active' : '';
+      out += `<td class="match-cell${active}" id="${cid}" onclick="toggleMatchCell('${cid}','${q.id}',${ri},'${col}')">` +
              `<span class="match-x">&#x2715;</span></td>`;
     });
     out += '</tr>';
@@ -487,6 +592,7 @@ function toggleMatchCell(cellId, qId, rowIdx, col) {
   const cur = new Set(answers[key][rowIdx] || []);
   if (cell.classList.contains('match-cell-active')) cur.add(col); else cur.delete(col);
   answers[key][rowIdx] = [...cur];
+  saveProgress();
 }
 
 /* ── SELECT-THREE ─────────────────────────────────────────────────────── */
@@ -541,12 +647,14 @@ function renderSelectionGrid(q) {
   });
   numList += '</div>';
 
+  const selState = answers['sel_' + q.id] || [];
   let grid = '<table class="sel-grid-tbl"><thead><tr>';
   cols.forEach(c => grid += `<th class="sel-grid-head">${c}</th>`);
   grid += '</tr></thead><tbody><tr>';
   cols.forEach(c => {
     const cid = `scell_${ek}_${q.num}_${c}`;
-    grid += `<td class="sel-cell" id="${cid}" onclick="toggleSelItem('${cid}','${q.id}','${c}')">` +
+    const active = selState.includes(c) ? ' sel-cell-active' : '';
+    grid += `<td class="sel-cell${active}" id="${cid}" onclick="toggleSelItem('${cid}','${q.id}','${c}')">` +
             `<span class="sel-x">&#x2715;</span></td>`;
   });
   grid += '</tr></tbody></table>';
@@ -570,6 +678,7 @@ function toggleSelItem(cellId, qId, num) {
   if (!answers[key]) answers[key] = [];
   if (cell.classList.contains('sel-cell-active')) answers[key].push(num);
   else answers[key] = answers[key].filter(n => n !== num);
+  saveProgress();
 }
 
 /* ── FILL-IN ─────────────────────────────────────────────────────────────── */
@@ -639,8 +748,8 @@ function revealOpenAnswers(examKey, q) {
       el.onclick = null;
       const num = el.id.split('_').pop();
       if (correctNums.includes(num)) {
-        el.classList.add(el.classList.contains('sel-item-active') ? 'sel-correct' : 'sel-show-correct');
-      } else if (el.classList.contains('sel-item-active')) {
+        el.classList.add(el.classList.contains('sel-cell-active') ? 'sel-correct' : 'sel-show-correct');
+      } else if (el.classList.contains('sel-cell-active')) {
         el.classList.add('sel-wrong');
       }
     });
@@ -674,6 +783,7 @@ function pickOpt(qId, choice, el) {
   el.closest('.opts-grid').querySelectorAll('.opt').forEach(o => o.classList.remove('selected'));
   el.classList.add('selected');
   updateDots();
+  saveProgress();
 }
 
 function pickTableRow(qId, choice, rowEl) {
@@ -682,10 +792,11 @@ function pickTableRow(qId, choice, rowEl) {
   rowEl.closest('.tbl-opts').querySelectorAll('.tbl-row-opt').forEach(r => r.classList.remove('selected'));
   rowEl.classList.add('selected');
   updateDots();
+  saveProgress();
 }
 
-function saveText(qId, val)                   { answers['open_' + qId] = val; }
-function saveItemText(qId, itemId, val)        { answers['open_' + qId + '_' + itemId] = val; }
+function saveText(qId, val)                   { answers['open_' + qId] = val; saveProgress(); }
+function saveItemText(qId, itemId, val)        { answers['open_' + qId + '_' + itemId] = val; saveProgress(); }
 
 function updateDots() {
   const exam = EXAMS[currentExamKey];
@@ -715,7 +826,10 @@ function collectOpenAnswers() {
       }))};
     } else if (st === 'selection') {
       const selected = answers[`sel_${q.id}`] || [];
-      out[q.id] = { typed: selected.join(', '), items: [] };
+      const item0 = items[0];
+      out[q.id] = item0
+        ? { typed: '', items: [{ id: item0.id, typed: selected.join(', ') }] }
+        : { typed: selected.join(', '), items: [] };
     } else if (!items.length) {
       out[q.id] = { typed: answers['open_' + q.id] || '', items: [] };
     } else {
@@ -741,6 +855,7 @@ function submitExam(auto = false) {
 
   submitted = true;
   stopTimer();
+  clearProgress();   // exam finished — drop the autosave
   document.removeEventListener('keydown', handleKey);
 
   const openAnswers = collectOpenAnswers();
@@ -991,6 +1106,8 @@ function showWelcome() {
 
   const welcome = document.getElementById('welcome-screen');
   if (welcome) welcome.style.display = 'flex';
+
+  renderResumeBanner();
 }
 
 function hideWelcome() {
@@ -1058,5 +1175,11 @@ function pickAnalytics() {
 /* ── Bootstrap ─────────────────────────────────────────────────────────── */
 window.addEventListener('DOMContentLoaded', () => {
   buildSelectionScreen();
-  showWelcome();
+  showWelcome();   // renders the resume banner if a saved exam exists
+});
+
+// Final safety net: persist the moment the tab is closed/refreshed/backgrounded
+window.addEventListener('beforeunload', saveProgress);
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') saveProgress();
 });

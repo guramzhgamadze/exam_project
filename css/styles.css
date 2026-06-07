@@ -1681,6 +1681,40 @@ body {
 .wlc-stats-btn:hover { border-color: var(--accent); color: var(--accent); background: #eef3ff; }
 .wlc-stats-icon { font-size: clamp(.8rem, 1.2vw, 1rem); }
 
+/* ── Resume (autosave) banner ── */
+.wlc-resume-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin: clamp(10px, 1.6vh, 18px) clamp(20px, 4vw, 52px) 0;
+  padding: clamp(10px, 1.4vh, 16px) clamp(14px, 2vw, 22px);
+  background: #fff8e6;
+  border: 1.5px solid #e0b400;
+  border-left: 5px solid #e0b400;
+  border-radius: 8px;
+}
+.wlc-resume-info { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.wlc-resume-icon { font-size: clamp(1.3rem, 2.4vw, 1.8rem); flex-shrink: 0; }
+.wlc-resume-title { font-weight: 700; color: var(--accent); font-size: clamp(.85rem, 1.4vw, 1rem); }
+.wlc-resume-sub   { color: var(--muted); font-size: clamp(.72rem, 1.2vw, .85rem); margin-top: 2px; }
+.wlc-resume-actions { display: flex; gap: 8px; flex-shrink: 0; }
+.wlc-resume-btn {
+  background: var(--green); color: #fff; border: none;
+  padding: clamp(7px, 1vh, 11px) clamp(14px, 1.8vw, 22px);
+  border-radius: 6px; font-weight: 600; cursor: pointer;
+  font-family: inherit; font-size: clamp(.78rem, 1.2vw, .9rem);
+}
+.wlc-resume-btn:hover { filter: brightness(1.08); }
+.wlc-resume-discard {
+  background: none; color: var(--muted); border: 1.5px solid var(--border);
+  padding: clamp(7px, 1vh, 11px) clamp(12px, 1.6vw, 18px);
+  border-radius: 6px; cursor: pointer;
+  font-family: inherit; font-size: clamp(.78rem, 1.2vw, .9rem);
+}
+.wlc-resume-discard:hover { border-color: var(--red); color: var(--red); background: #fff0f0; }
+
 /* ── Responsive ── */
 
 /* Tablet */
