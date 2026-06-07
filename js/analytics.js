@@ -550,7 +550,7 @@ function renderAnalytics() {
               </div>
               ${r.modelAnswer ? `<div class="an-open-col">
                 <div class="an-open-lbl">სწორი პასუხი</div>
-                <div class="an-open-model">${escHtml(r.modelAnswer)}</div>
+                <div class="an-open-model">${r.modelAnswer}</div>
               </div>` : ''}
             </div>
             ${buildAnOpenGradeButtons(s.id, gradeKey0, s.openGrades)}
@@ -574,7 +574,7 @@ function renderAnalytics() {
                 </div>
                 ${item.modelAnswer ? `<div class="an-open-col">
                   <div class="an-open-lbl">სწორი პასუხი</div>
-                  <div class="an-open-model">${escHtml(item.modelAnswer)}</div>
+                  <div class="an-open-model">${item.modelAnswer}</div>
                 </div>` : ''}
               </div>
               ${buildAnOpenGradeButtons(s.id, gradeKeyI, s.openGrades)}
@@ -599,8 +599,8 @@ function renderAnalytics() {
       const body   = m.isOpen
         ? `<div class="an-mistake-open-body">
             <div class="an-open-lbl">კითხვა</div>
-            <div class="an-open-q-text">${escHtml(m.text)}</div>
-            ${m.modelAnswer ? `<div class="an-open-lbl" style="margin-top:8px">სწორი პასუხი</div><div class="an-open-model">${escHtml(m.modelAnswer)}</div>` : ''}
+            <div class="an-open-q-text">${m.text}</div>
+            ${m.modelAnswer ? `<div class="an-open-lbl" style="margin-top:8px">სწორი პასუხი</div><div class="an-open-model">${m.modelAnswer}</div>` : ''}
             ${m.examples.length ? `<div class="an-open-lbl" style="margin-top:8px">თქვენი პასუხები</div>${m.examples.map(e => `<div class="an-open-typed">${escHtml(e.typed||'—')}</div>`).join('')}` : ''}
           </div>`
         : renderMistakeQuestion(m);
