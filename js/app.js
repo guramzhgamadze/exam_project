@@ -859,14 +859,21 @@ function submitExam(auto = false) {
   document.removeEventListener('keydown', handleKey);
 
   const openAnswers = collectOpenAnswers();
-  if (typeof recordSession === 'function') recordSession(currentExamKey, answers, openAnswers);
+  let sessionId = null;
+  if (typeof recordSession === 'function') sessionId = recordSession(currentExamKey, answers, openAnswers);
 
   // Reveal open answers on screen before switching to results
   EXAMS[currentExamKey].questions.filter(q => q.type === 'open').forEach(q => {
     revealOpenAnswers(currentExamKey, q);
   });
 
-  buildResultsScreen();
+  // Unified results screen with inline open-answer grading; fall back to the
+  // legacy MCQ-only screen if recording failed.
+  if (sessionId != null && typeof renderResultReview === 'function') {
+    renderResultReview(sessionId, true, false);
+  } else {
+    buildResultsScreen();
+  }
   document.getElementById('exam-screen').style.display    = 'none';
   document.getElementById('results-screen').style.display = 'flex';
 }

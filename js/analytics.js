@@ -108,6 +108,8 @@ function recordSession(examKey, mcqAnswers, openAnswers) {
   if (document.getElementById('analytics-pane')?.classList.contains('active')) {
     renderAnalytics();
   }
+
+  return session.id;
 }
 
 /* ── Aggregate stats ────────────────────────────────────────────────────── */
@@ -167,12 +169,14 @@ function computeStats() {
       if (!mistakeMap[r.qId]) {
         mistakeMap[r.qId] = {
           qId: r.qId, num: r.num, text: r.text,
-          label: s.label, wrongCount: 0, total: 0, examples: [], isOpen: false
+          label: s.label, wrongCount: 0, total: 0, examples: [], wrongPicks: {}, isOpen: false
         };
       }
       mistakeMap[r.qId].total++;
       if (!r.isRight) {
         mistakeMap[r.qId].wrongCount++;
+        const pick = r.selected || '—';   // '—' = left blank / skipped
+        mistakeMap[r.qId].wrongPicks[pick] = (mistakeMap[r.qId].wrongPicks[pick] || 0) + 1;
         if (mistakeMap[r.qId].examples.length < 3)
           mistakeMap[r.qId].examples.push({ selected: r.selected, correct: r.correct, date: s.date });
       }
@@ -187,13 +191,15 @@ function computeStats() {
         if (!mistakeMap[key]) {
           mistakeMap[key] = {
             qId: key, num: r.num, text: r.text,
-            label: s.label, wrongCount: 0, total: 0, examples: [], isOpen: true,
+            label: s.label, wrongCount: 0, total: 0, examples: [], wrongTyped: {}, isOpen: true,
             modelAnswer: r.modelAnswer || null
           };
         }
         mistakeMap[key].total++;
         if (grades[key] === false) {
           mistakeMap[key].wrongCount++;
+          const t = (r.typed || '').trim() || '—';
+          mistakeMap[key].wrongTyped[t] = (mistakeMap[key].wrongTyped[t] || 0) + 1;
           if (mistakeMap[key].examples.length < 3)
             mistakeMap[key].examples.push({ typed: r.typed, modelAnswer: r.modelAnswer, date: s.date });
         }
@@ -205,13 +211,15 @@ function computeStats() {
           if (!mistakeMap[mapKey]) {
             mistakeMap[mapKey] = {
               qId: mapKey, num: r.num, text: r.text + ' [' + item.id + '] ' + item.text,
-              label: s.label, wrongCount: 0, total: 0, examples: [], isOpen: true,
+              label: s.label, wrongCount: 0, total: 0, examples: [], wrongTyped: {}, isOpen: true,
               modelAnswer: item.modelAnswer || null
             };
           }
           mistakeMap[mapKey].total++;
           if (grades[key] === false) {
             mistakeMap[mapKey].wrongCount++;
+            const t = (item.typed || '').trim() || '—';
+            mistakeMap[mapKey].wrongTyped[t] = (mistakeMap[mapKey].wrongTyped[t] || 0) + 1;
             if (mistakeMap[mapKey].examples.length < 3)
               mistakeMap[mapKey].examples.push({ typed: item.typed, modelAnswer: item.modelAnswer, date: s.date });
           }
@@ -245,6 +253,22 @@ function pctColor(pct) {
 
 function pctBar(pct, color) {
   return `<div class="an-bar-bg"><div class="an-bar-fill" style="width:${pct ?? 0}%;background:${color}"></div></div>`;
+}
+
+// Shows how many times each specific wrong answer was repeated (only when the
+// question was missed more than once).
+function renderRepeatBreakdown(m) {
+  if (!m || m.wrongCount <= 1) return '';
+  const tally = m.isOpen ? m.wrongTyped : m.wrongPicks;
+  if (!tally) return '';
+  const entries = Object.entries(tally).filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1]);
+  if (!entries.length) return '';
+  const pills = entries.map(([k, n]) => {
+    let label = k === '—' ? (m.isOpen ? 'ცარიელი' : 'გამოტოვა') : (typeof htmlToPlain === 'function' ? htmlToPlain(k) : k);
+    if (label.length > 40) label = label.slice(0, 40) + '…';
+    return `<span class="an-repeat-pill">${escHtml(label)} <strong>×${n}</strong></span>`;
+  });
+  return `<div class="an-mistake-repeat">🔁 ერთი და იგივე შეცდომა: ${pills.join(' ')}</div>`;
 }
 
 
@@ -459,12 +483,15 @@ function renderAnalytics() {
     const p = combinedTotal ? Math.round(combinedCorrect / combinedTotal * 100) : null;
     const col = pctColor(p);
     const openStr = d.openTotal > 0 ? ` · ღია: ${d.openCorrect}/${d.openTotal}` : '';
-    html += `<div class="an-year-card an-year-clickable" onclick="reviewYear('${yr}')" title="დააჭირეთ სრული ტესტის სანახავად">
+    const multi   = d.sessions > 1;
+    const hint    = multi ? `👁 ${d.sessions} მცდელობა` : '👁 ნახვა';
+    const tip     = multi ? 'დააჭირეთ მცდელობის ასარჩევად' : 'დააჭირეთ სრული ტესტის სანახავად';
+    html += `<div class="an-year-card an-year-clickable" onclick="reviewYear('${yr}')" title="${tip}">
       <div class="an-year-label">${yr}</div>
       <div class="an-year-pct" style="color:${col}">${p ?? '—'}%</div>
       ${pctBar(p, col)}
       <div class="an-year-meta">${d.sessions} გამოცდა · ${d.correct}/${d.total}${openStr}</div>
-      <div class="an-year-open-hint">👁 ნახვა</div>
+      <div class="an-year-open-hint">${hint}</div>
     </div>`;
   });
   html += '</div>';
@@ -590,11 +617,12 @@ function renderAnalytics() {
     html += `</div></div>`;  // close sess-body + sess-card
   });
 
-  // ── MCQ Mistakes ──
+  // ── MCQ Mistakes (collapsible, full list) ──
   if (mistakes.length) {
-    html += `<div class="an-section-title" style="margin-top:28px">❌ ყველაზე ხშირი შეცდომები</div>
-<div class="an-mistakes-list">`;
-    mistakes.slice(0, 30).forEach((m, i) => {
+    html += `<details class="an-mistakes-details">
+      <summary class="an-section-title an-mistakes-summary" style="margin-top:28px">❌ ყველაზე ხშირი შეცდომები (${mistakes.length})</summary>
+      <div class="an-mistakes-list">`;
+    mistakes.forEach((m, i) => {
       const errPct = Math.round(m.wrongCount / m.total * 100);
       const col    = pctColor(100 - errPct);
       const body   = m.isOpen
@@ -613,10 +641,11 @@ function renderAnalytics() {
           <span class="an-bar-inline-wrap" style="flex:1;max-width:120px">${pctBar(100 - errPct, col)}</span>
           <span class="an-mistake-stat">${m.total - m.wrongCount}/${m.total} სწორი</span>
         </div>
+        ${renderRepeatBreakdown(m)}
         ${body}
       </div>`;
     });
-    html += '</div>';
+    html += '</div></details>';
   }
 
   // ── Recheck + Reset ──
@@ -970,72 +999,191 @@ function showAnalytics() {
 
 /* ── Full session review (opened from a year card) ──────────────────────── */
 
-// A year card may aggregate several sessions — open the most recent one.
+// A year card may aggregate several attempts. One attempt → open it directly;
+// several → let the student pick which one to review.
 function reviewYear(year) {
   const { sessions } = loadStats();
-  const ys = sessions.filter(s => String(s.year) === String(year));
+  const ys = sessions.filter(s => String(s.year) === String(year))
+    .sort((a, b) => new Date(b.date) - new Date(a.date));   // newest first
   if (!ys.length) return;
-  const s = [...ys].sort((a, b) => new Date(b.date) - new Date(a.date))[0];
-  reviewSession(s.id);
+  if (ys.length === 1) { reviewSession(ys[0].id); return; }
+  showAttemptPicker(year, ys);
 }
 
-function reviewSession(sessionId) {
+function showAttemptPicker(year, ys) {
+  closeAttemptPicker();
+  const rows = ys.map((s, i) => {
+    const exam = EXAMS[s.examKey];
+    let mark, pct;
+    if (exam) { const t = computeReviewTotals(s, exam); mark = `${t.totalRight} / ${t.totalQ}`; pct = t.finalPct; }
+    else      { mark = `${s.score ?? '—'} / ${s.total ?? '—'}`; pct = s.pct; }
+    const col = pctColor(pct);
+    return `<div class="attempt-row">
+      <button class="attempt-item" onclick="openAttempt(${s.id})">
+        <span class="attempt-no">#${ys.length - i}</span>
+        <span class="attempt-date">${fmtDate(s.date)}</span>
+        <span class="attempt-variant">${s.variant ? 'ვარიანტი ' + s.variant : ''}</span>
+        <span class="attempt-mark">${mark}</span>
+        <span class="attempt-pct" style="color:${col}">${pct ?? '—'}%</span>
+      </button>
+      <button class="attempt-del" onclick="deleteAttempt(${s.id}, '${year}')" title="ამ მცდელობის წაშლა" aria-label="წაშლა">🗑</button>
+    </div>`;
+  }).join('');
+
+  const overlay = document.createElement('div');
+  overlay.className = 'attempt-modal-overlay';
+  overlay.id = 'attempt-modal-overlay';
+  overlay.onclick = (e) => { if (e.target === overlay) closeAttemptPicker(); };
+  overlay.innerHTML = `
+    <div class="attempt-modal">
+      <div class="attempt-modal-head">
+        <span>${year} — აირჩიეთ მცდელობა (${ys.length})</span>
+        <button class="attempt-modal-close" onclick="closeAttemptPicker()" aria-label="დახურვა">✕</button>
+      </div>
+      <div class="attempt-modal-list">${rows}</div>
+    </div>`;
+  document.body.appendChild(overlay);
+  document.addEventListener('keydown', attemptPickerEsc);
+}
+
+function attemptPickerEsc(e) { if (e.key === 'Escape') closeAttemptPicker(); }
+
+function openAttempt(id) { closeAttemptPicker(); reviewSession(id); }
+
+function closeAttemptPicker() {
+  const o = document.getElementById('attempt-modal-overlay');
+  if (o) o.remove();
+  document.removeEventListener('keydown', attemptPickerEsc);
+}
+
+function deleteAttempt(id, year) {
+  if (!confirm('ამ მცდელობის წაშლა? ეს ქმედება შეუქცევადია.')) return;
+  const stats = loadStats();
+  stats.sessions = stats.sessions.filter(s => s.id !== id);
+  saveStats(stats);
+  renderAnalytics();   // refresh the statistics page underneath
+
+  // Refresh the picker with what's left for this year
+  const ys = stats.sessions.filter(s => String(s.year) === String(year))
+    .sort((a, b) => new Date(b.date) - new Date(a.date));
+  if (ys.length >= 2) showAttemptPicker(year, ys);
+  else closeAttemptPicker();   // 0 or 1 left → no picker needed
+}
+
+// Year-card / history entry → review (most recent session for that year handled by reviewYear)
+function reviewSession(sessionId) { renderResultReview(sessionId, false, false); }
+
+// Count combined totals from a saved session against the full question bank.
+// Open questions count every gradable unit (so the denominator = whole test).
+// Untyped+ungraded open units silently count as wrong; typed+ungraded units
+// drive the "please grade" notice.
+function computeReviewTotals(s, exam) {
+  const mcqByQ = {}; (s.mcqResults || []).forEach(r => { mcqByQ[r.qId] = r; });
+  const openByQ = {}; (s.openResults || []).forEach(r => { openByQ[r.qId] = r; });
+  const grades = s.openGrades || {};
+
+  let correct = 0, wrong = 0, skipped = 0;
+  exam.questions.filter(q => q.type === 'mcq' && q.answer).forEach(q => {
+    const sel = (mcqByQ[q.id] || {}).selected;
+    if (mcqIsCorrect(sel, q.answer)) correct++;
+    else if (sel) wrong++;
+    else skipped++;
+  });
+
+  let openUnits = 0, openGraded = 0, openCorrect = 0, ungradedTyped = 0;
+  exam.questions.filter(q => q.type === 'open').forEach(q => {
+    const r = openByQ[q.id] || { items: [] };
+    const units = (!r.items || !r.items.length)
+      ? [{ key: q.id, typed: (r.typed || '').trim() }]
+      : r.items.map(it => ({ key: q.id + '_' + it.id, typed: (it.typed || '').trim() }));
+    units.forEach(u => {
+      openUnits++;
+      const g = grades[u.key];
+      if (g !== undefined) { openGraded++; if (g === true) openCorrect++; }
+      else if (u.typed) ungradedTyped++;
+    });
+  });
+
+  const mcqGradable = correct + wrong + skipped;
+  const totalRight  = correct + openCorrect;
+  const totalQ      = mcqGradable + openUnits;
+  const totalWrong  = totalQ - totalRight;
+  const finalPct    = totalQ ? Math.round(totalRight / totalQ * 100) : null;
+  return { correct, wrong, skipped, mcqGradable, openUnits, openGraded, openCorrect,
+           ungradedTyped, totalRight, totalQ, totalWrong, finalPct };
+}
+
+// Keep the session's stored score fields in sync (used by the analytics history list).
+function syncSessionScore(s) {
+  const grades = s.openGrades || {};
+  const oc = Object.values(grades).filter(v => v === true).length;
+  const ot = Object.keys(grades).length;
+  const mcqC = s.mcqScore !== undefined ? s.mcqScore : ((s.score || 0) - oc);
+  const mcqT = s.mcqTotal !== undefined ? s.mcqTotal : ((s.total || 0) - ot);
+  s.mcqScore = mcqC; s.mcqTotal = mcqT;
+  s.score = mcqC + oc; s.total = mcqT + ot;
+  s.pct = s.total ? Math.round(s.score / s.total * 100) : null;
+}
+
+// Unified results / review screen. isLive=true → just-finished exam.
+function renderResultReview(sessionId, isLive, keepView) {
   const { sessions } = loadStats();
   const s = sessions.find(x => x.id === sessionId);
   if (!s) { alert('სესია ვერ მოიძებნა'); return; }
   const exam = EXAMS[s.examKey];
   if (!exam) { alert('ამ გამოცდის მონაცემები ვერ მოიძებნა'); return; }
 
-  const mcqByQ = {};
-  (s.mcqResults || []).forEach(r => { mcqByQ[r.qId] = r; });
-  const openByQ = {};
-  (s.openResults || []).forEach(r => { openByQ[r.qId] = r; });
+  window._reviewState = { sessionId, isLive };
+
+  const mcqByQ = {};  (s.mcqResults  || []).forEach(r => { mcqByQ[r.qId]  = r; });
+  const openByQ = {}; (s.openResults || []).forEach(r => { openByQ[r.qId] = r; });
   const grades = s.openGrades || {};
 
-  let correct = 0, wrong = 0, skipped = 0;
   const cards = exam.questions.map(q => {
     if (q.type === 'mcq') {
-      const r   = mcqByQ[q.id] || {};
-      const sel = r.selected ?? null;
+      const sel = (mcqByQ[q.id] || {}).selected ?? null;
       const ans = q.answer;
       let status = 'skipped';
-      if (ans) {
-        if (mcqIsCorrect(sel, ans)) { status = 'correct'; correct++; }
-        else if (sel)               { status = 'wrong';   wrong++; }
-        else                        { status = 'skipped'; skipped++; }
-      }
+      if (ans) status = mcqIsCorrect(sel, ans) ? 'correct' : sel ? 'wrong' : 'skipped';
       return buildMCQResultCard(q, sel, ans, status);
     }
-    return buildOpenReviewCard(q, openByQ[q.id] || { items: [] }, grades);
+    return buildOpenReviewCard(q, openByQ[q.id] || { items: [] }, grades, sessionId, isLive);
   }).join('');
 
-  const mcqTotal    = exam.questions.filter(q => q.type === 'mcq' && q.answer).length;
-  const pct         = mcqTotal ? Math.round(correct / mcqTotal * 100) : null;
-  const col         = pctColor(pct);
-  const openCorrect = Object.values(grades).filter(v => v === true).length;
-  const openTotal   = Object.keys(grades).length;
+  const t   = computeReviewTotals(s, exam);
+  const col = pctColor(t.finalPct);
+
+  const notice = `<div class="res-rev-notice" id="res-rev-notice" style="${t.ungradedTyped > 0 ? '' : 'display:none'}">
+    ⚠️ ღია კითხვები ჯერ არ არის შეფასებული — გთხოვთ, ქვემოთ თითოეული ღია პასუხი მონიშნოთ როგორც ✓ სწორი ან ✗ არასწორი.
+  </div>`;
 
   const summaryHtml = `
     <div class="res-summary-grid">
-      <div class="res-stat"><div class="res-num" style="color:var(--green)">${correct}</div><div class="res-lbl">სწორი</div></div>
-      <div class="res-stat"><div class="res-num" style="color:var(--red)">${wrong}</div><div class="res-lbl">არასწორი</div></div>
-      <div class="res-stat"><div class="res-num" style="color:var(--muted)">${skipped}</div><div class="res-lbl">გამოტოვ.</div></div>
-      <div class="res-stat"><div class="res-num" style="color:${col}">${pct ?? '—'}%</div><div class="res-lbl">ტესტური</div></div>
-      ${openTotal ? `<div class="res-stat"><div class="res-num" style="color:var(--accent)">${openCorrect}/${openTotal}</div><div class="res-lbl">ღია</div></div>` : ''}
+      <div class="res-stat"><div class="res-num" id="res-rev-total">${t.totalQ}</div><div class="res-lbl">სულ კითხვა</div></div>
+      <div class="res-stat"><div class="res-num" style="color:var(--green)" id="res-rev-right">${t.totalRight}</div><div class="res-lbl">სწორი</div></div>
+      <div class="res-stat"><div class="res-num" style="color:var(--red)" id="res-rev-wrong">${t.totalWrong}</div><div class="res-lbl">არასწორი</div></div>
+      <div class="res-stat"><div class="res-num res-num-mark" style="color:${col}" id="res-rev-mark">${t.totalRight} / ${t.totalQ}</div><div class="res-lbl">საბოლოო ქულა · <span id="res-rev-pct" style="color:${col}">${t.finalPct ?? '—'}%</span></div></div>
     </div>
-    <div class="res-score-bar"><div class="res-score-fill" style="width:0;background:${col}" id="rev-fill"></div></div>`;
+    <div class="res-score-bar"><div class="res-score-fill" style="width:0;background:${col}" id="rev-fill"></div></div>
+    ${notice}`;
+
+  const backBtn = isLive
+    ? `<button class="res-back-btn" onclick="backToSelection()">← მთავარი გვერდი</button>`
+    : `<button class="res-back-btn" onclick="closeReview()">← სტატისტიკა</button>`;
+  const subText = isLive ? 'გამოცდა დასრულდა' : fmtDate(s.date);
+  const title   = isLive ? '🎓 გამოცდის შედეგები' : `📋 ${s.label} — სრული მიმოხილვა`;
 
   const rs = document.getElementById('results-screen');
   rs.innerHTML = `
     <div class="res-topbar">
       <div class="res-topbar-title">
         <span>${exam.title} — ${exam.variantLabel}</span>
-        <span class="res-topbar-sub">${exam.date} · ${fmtDate(s.date)}</span>
+        <span class="res-topbar-sub">${exam.date} · ${subText}</span>
       </div>
-      <button class="res-back-btn" onclick="closeReview()">← სტატისტიკა</button>
+      ${backBtn}
     </div>
     <div class="res-summary-card">
-      <div class="res-summary-title">📋 ${s.label} — სრული მიმოხილვა</div>
+      <div class="res-summary-title">${title}</div>
       ${summaryHtml}
     </div>
     <div class="res-questions-list">${cards}</div>`;
@@ -1044,8 +1192,44 @@ function reviewSession(sessionId) {
   if (welcome) welcome.style.display = 'none';
   document.getElementById('selection-screen').style.display = 'none';
   rs.style.display = 'flex';
-  window.scrollTo(0, 0);
-  setTimeout(() => { const f = document.getElementById('rev-fill'); if (f) f.style.width = (pct ?? 0) + '%'; }, 200);
+  if (!keepView) window.scrollTo(0, 0);
+  setTimeout(() => { const f = document.getElementById('rev-fill'); if (f) f.style.width = (t.finalPct ?? 0) + '%'; }, 200);
+}
+
+// Grade an open answer from the results/review screen, then re-render in place
+// (preserving scroll position and which questions are expanded).
+function gradeOpenResult(sessionId, key, val) {
+  const stats = loadStats();
+  const s = stats.sessions.find(x => x.id === sessionId);
+  if (!s) return;
+  if (!s.openGrades) s.openGrades = {};
+  if (s.openGrades[key] === val) delete s.openGrades[key];   // click active again → un-grade
+  else s.openGrades[key] = val;
+  syncSessionScore(s);
+  saveStats(stats);
+
+  // Preserve view across the re-render
+  const isLive = !!(window._reviewState && window._reviewState.isLive);
+  const openIdx = [];
+  document.querySelectorAll('#results-screen details').forEach((d, i) => { if (d.open) openIdx.push(i); });
+  const sy = window.scrollY;
+
+  renderResultReview(sessionId, isLive, true);
+
+  const dets = document.querySelectorAll('#results-screen details');
+  openIdx.forEach(i => { if (dets[i]) dets[i].open = true; });
+  window.scrollTo(0, sy);
+}
+
+function buildResultGradeButtons(sessionId, key, grades) {
+  const saved  = (grades || {})[key];
+  const okCls  = saved === true  ? ' active' : '';
+  const errCls = saved === false ? ' active' : '';
+  return `<div class="res-grade-wrap" data-sid="${sessionId}" data-key="${key}">
+    <span class="res-grade-q">შეფასება:</span>
+    <button class="res-grade-btn res-grade-ok${okCls}"  onclick="gradeOpenResult(${sessionId}, '${key}', true)">✓ სწორი</button>
+    <button class="res-grade-btn res-grade-err${errCls}" onclick="gradeOpenResult(${sessionId}, '${key}', false)">✗ არასწორი</button>
+  </div>`;
 }
 
 function closeReview() {
@@ -1056,27 +1240,25 @@ function closeReview() {
   window.scrollTo(0, 0);
 }
 
-// Open-question card for the review screen — reads typed answers from the
-// saved session (works for matching/selection too) and shows the grade.
-function buildOpenReviewCard(q, r, grades) {
+// Open-question card for the results/review screen — reads typed answers from the
+// saved session (works for matching/selection too) and lets the student grade
+// each unit ✓/✗. autoOpen expands cards that still need grading (live screen).
+function buildOpenReviewCard(q, r, grades, sessionId, autoOpen) {
   const items = r.items || [];
-  const gradeBadge = (key) => {
-    if (grades[key] === true)  return '<span class="res-badge res-badge-ok">✓ სწორი</span>';
-    if (grades[key] === false) return '<span class="res-badge res-badge-err">✗ არასწორი</span>';
-    return '';
-  };
+  let body = '', anyToGrade = false;
 
-  let body = '', headBadge = '';
   if (!items.length) {
     const typed = r.typed || '';
     const model = r.modelAnswer || q.single_answer || '';
-    headBadge = gradeBadge(q.id);
+    const key   = q.id;
+    if (typed.trim() && grades[key] === undefined) anyToGrade = true;
     body = `<div class="res-open-row">
-      <div class="res-open-col"><div class="res-open-lbl">თქვენი პასუხი</div>
-        <div class="res-open-typed ${typed ? '' : 'res-open-empty'}">${typed || '— არ შეგიყვანიათ —'}</div></div>
-      ${model ? `<div class="res-open-col"><div class="res-open-lbl">სწორი პასუხი</div>
-        <div class="res-open-model">${model}</div></div>` : ''}
-    </div>`;
+        <div class="res-open-col"><div class="res-open-lbl">თქვენი პასუხი</div>
+          <div class="res-open-typed ${typed ? '' : 'res-open-empty'}">${typed || '— არ შეგიყვანიათ —'}</div></div>
+        ${model ? `<div class="res-open-col"><div class="res-open-lbl">სწორი პასუხი</div>
+          <div class="res-open-model">${model}</div></div>` : ''}
+      </div>
+      ${buildResultGradeButtons(sessionId, key, grades)}`;
   } else {
     body = items.map(item => {
       const typed    = item.typed || '';
@@ -1084,18 +1266,23 @@ function buildOpenReviewCard(q, r, grades) {
       const model    = item.modelAnswer || fullItem.answer || '';
       const itemText = item.text || fullItem.text || '';
       const key      = q.id + '_' + item.id;
+      if (typed.trim() && grades[key] === undefined) anyToGrade = true;
       return `<div class="res-open-item">
         <div class="res-open-item-id">${item.id}</div>
-        <div class="res-open-item-q">${itemText} ${gradeBadge(key)}</div>
+        <div class="res-open-item-q">${itemText}</div>
         <div class="res-open-row">
           <div class="res-open-col"><div class="res-open-lbl">თქვენი პასუხი</div>
             <div class="res-open-typed ${typed ? '' : 'res-open-empty'}">${typed || '— არ შეგიყვანიათ —'}</div></div>
           ${model ? `<div class="res-open-col"><div class="res-open-lbl">სწორი პასუხი</div>
             <div class="res-open-model">${model}</div></div>` : ''}
         </div>
+        ${buildResultGradeButtons(sessionId, key, grades)}
       </div>`;
     }).join('');
   }
+
+  const toGradeTag = anyToGrade ? '<span class="res-badge res-badge-tograde">⚠ შესაფასებელი</span>' : '';
+  const openAttr   = (autoOpen && anyToGrade) ? ' open' : '';
 
   return `
     <div class="res-q-card res-q-open">
@@ -1103,10 +1290,10 @@ function buildOpenReviewCard(q, r, grades) {
         <span class="res-q-num open-num">${q.num}</span>
         <span class="res-q-text-short">${q.text.slice(0, 80)}${q.text.length > 80 ? '…' : ''}</span>
         <span class="res-badge res-badge-open">ღია</span>
-        ${headBadge}
+        ${toGradeTag}
       </div>
-      <details class="res-details">
-        <summary>პასუხების ნახვა</summary>
+      <details class="res-details"${openAttr}>
+        <summary>პასუხის ნახვა და შეფასება</summary>
         <div class="res-q-full">
           <div class="q-text">${q.text}</div>
           ${q.note ? `<div class="q-note">⚠️ ${q.note}</div>` : ''}
