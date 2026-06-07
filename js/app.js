@@ -516,6 +516,15 @@ function renderOpenItems(q) {
 
   return '<div class="sub-qs">' + items.map(item => {
     const safe    = String(item.id).replace(/\./g, '-');
+
+    // Worked example — answer is given in the exam: show it read-only, don't grade.
+    if (item.example) {
+      return `<div class="sub-q-wrap">
+        <div class="sub-q-label"><span class="sub-q-num">${item.id}</span><span>${item.text}</span></div>
+        <div class="open-example">${item.answer || ''} <span class="open-example-tag">ნიმუში</span></div>
+      </div>`;
+    }
+
     const val     = answers['open_' + q.id + '_' + item.id] || '';
     const revHtml = item.answer
       ? `<div class="answer-reveal" id="irev-${ek}-${q.num}-${safe}" style="display:none">` +

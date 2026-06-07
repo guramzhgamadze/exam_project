@@ -348,7 +348,7 @@ function renderMistakeQuestion(m) {
   }
 
   out += '</div>';
-  return out;
+  return balanceHtml(out);   // contain any stray tags from the question bank
 }
 
 
@@ -567,7 +567,18 @@ ${incompleteNote}`;
           // Sub-item open answers
           html += `<div class="an-open-card">
             <div class="an-open-q"><strong>კ.${r.num}</strong> ${r.text}${r.text.length >= 120 ? '…' : ''}</div>`;
+          const examQ = exam && exam.questions.find(qq => qq.id === r.qId);
           r.items.forEach(item => {
+            const fullItem = ((examQ && examQ.items) || []).find(x => String(x.id) === String(item.id)) || {};
+            // Worked example — given, read-only, not graded.
+            if (fullItem.example) {
+              html += `<div class="an-open-item">
+                <div class="an-open-item-id">${item.id}</div>
+                <div class="an-open-item-q">${item.text} <span class="an-open-tag">ნიმუში</span></div>
+                ${item.modelAnswer ? `<div class="an-open-model">${item.modelAnswer}</div>` : ''}
+              </div>`;
+              return;
+            }
             const hasTyped = item.typed && item.typed.trim();
             const gradeKeyI = r.qId + '_' + item.id;
             const savedGradeI = (s.openGrades || {})[gradeKeyI];
@@ -613,7 +624,7 @@ ${incompleteNote}`;
             ${m.examples.length ? `<div class="an-open-lbl" style="margin-top:8px">თქვენი პასუხები</div>${m.examples.map(e => `<div class="an-open-typed">${escHtml(e.typed||'—')}</div>`).join('')}` : ''}
           </div>`
         : renderMistakeQuestion(m);
-      html += `<div class="an-mistake-card">
+      html += balanceHtml(`<div class="an-mistake-card">
         <div class="an-mistake-head">
           <span class="an-mistake-rank">#${i + 1}</span>
           <span class="an-mistake-ref">${m.label} · კ.${m.num}${m.isOpen ? ' <span class="an-open-tag">ღია</span>' : ''}</span>
@@ -623,7 +634,7 @@ ${incompleteNote}`;
         </div>
         ${renderRepeatBreakdown(m)}
         ${body}
-      </div>`;
+      </div>`);
     });
     html += '</div></details>';
   }
@@ -1079,9 +1090,13 @@ function computeReviewTotals(s, exam) {
   exam.questions.filter(q => q.type === 'open').forEach(q => {
     const r = openByQ[q.id] || { items: [] };
     const units = (!r.items || !r.items.length)
-      ? [{ key: q.id, typed: (r.typed || '').trim() }]
-      : r.items.map(it => ({ key: q.id + '_' + it.id, typed: (it.typed || '').trim() }));
+      ? [{ key: q.id, typed: (r.typed || '').trim(), example: false }]
+      : r.items.map(it => {
+          const full = (q.items || []).find(x => String(x.id) === String(it.id)) || {};
+          return { key: q.id + '_' + it.id, typed: (it.typed || '').trim(), example: !!full.example };
+        });
     units.forEach(u => {
+      if (u.example) return;   // worked examples are given, not scored
       openUnits++;
       const g = grades[u.key];
       if (g !== undefined) { openGraded++; if (g === true) openCorrect++; }
@@ -1128,14 +1143,17 @@ function renderResultReview(sessionId, isLive, keepView) {
   const grades = s.openGrades || {};
 
   const cards = exam.questions.map(q => {
+    let card;
     if (q.type === 'mcq') {
       const sel = (mcqByQ[q.id] || {}).selected ?? null;
       const ans = q.answer;
       let status = 'skipped';
       if (ans) status = mcqIsCorrect(sel, ans) ? 'correct' : sel ? 'wrong' : 'skipped';
-      return buildMCQResultCard(q, sel, ans, status);
+      card = buildMCQResultCard(q, sel, ans, status);
+    } else {
+      card = buildOpenReviewCard(q, openByQ[q.id] || { items: [] }, grades, sessionId, isLive);
     }
-    return buildOpenReviewCard(q, openByQ[q.id] || { items: [] }, grades, sessionId, isLive);
+    return balanceHtml(card);   // contain stray tags to this one card (no bleed)
   }).join('');
 
   const t   = computeReviewTotals(s, exam);
@@ -1259,6 +1277,16 @@ function buildOpenReviewCard(q, r, grades, sessionId, autoOpen) {
       const model    = item.modelAnswer || fullItem.answer || '';
       const itemText = item.text || fullItem.text || '';
       const key      = q.id + '_' + item.id;
+
+      // Worked example — given in the exam, shown read-only, not graded/counted.
+      if (fullItem.example) {
+        return `<div class="res-open-item">
+          <div class="res-open-item-id">${item.id}</div>
+          <div class="res-open-item-q">${itemText} <span class="res-badge res-badge-open">ნიმუში</span></div>
+          ${model ? `<div class="res-open-model">${model}</div>` : ''}
+        </div>`;
+      }
+
       if (typed.trim() && grades[key] === undefined) anyToGrade = true;
       return `<div class="res-open-item">
         <div class="res-open-item-id">${item.id}</div>
@@ -1304,4 +1332,17 @@ function escHtml(s) {
   return String(s)
     .replace(/&/g, '&amp;').replace(/</g, '&lt;')
     .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// Auto-balance/close any stray inline tags (<u>, <strong>, <sub>…) in a HTML
+// fragment so a malformed tag in the question bank can't bleed its formatting
+// into the rest of a multi-question list. The browser closes tags on round-trip.
+function balanceHtml(s) {
+  try {
+    const d = document.createElement('div');
+    d.innerHTML = String(s);
+    return d.innerHTML;
+  } catch {
+    return String(s);
+  }
 }

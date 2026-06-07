@@ -510,6 +510,8 @@ body {
 .open-ta     { width:100%; padding:7px 10px; border:1.5px solid #d0c8b4; border-top:none; border-radius:0 0 4px 4px; font-family:'Noto Sans Georgian',sans-serif; font-size:var(--fs-sm); line-height:1.55; resize:vertical; min-height:clamp(44px,6vh,68px); background:#fffef8; color:var(--text); transition:border-color .15s; }
 .single-ta   { width:100%; padding:8px 11px; border:1.5px solid #d0c8b4; border-radius:4px; font-family:'Noto Sans Georgian',sans-serif; font-size:var(--fs-base); background:#fffef8; color:var(--text); transition:border-color .15s; min-height:clamp(52px,8vh,82px); resize:vertical; margin-top:6px; }
 .open-ta:focus, .single-ta:focus { outline:none; border-color:var(--accent); background:#fff; }
+.open-example { display:flex; align-items:center; gap:8px; flex-wrap:wrap; width:100%; padding:8px 11px; border:1.5px solid var(--accent); border-radius:0 0 4px 4px; background:#eef3ff; font-size:var(--fs-sm); color:var(--accent); font-weight:600; }
+.open-example-tag { background:var(--accent); color:#fff; font-size:var(--fs-xs); padding:1px 9px; border-radius:10px; font-weight:600; }
 
 /* Dot navigation */
 .dot-row { display:flex; flex-wrap:wrap; gap:clamp(3px,.5vw,6px); margin-top:clamp(10px,1.2vw,16px); padding-top:clamp(8px,1vw,12px); border-top:1px solid #e5ddd0; }
