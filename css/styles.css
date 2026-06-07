@@ -1751,10 +1751,10 @@ body {
   font-size: clamp(.58rem, .9vw, .74rem);
   font-weight: 700;
   cursor: pointer;
-  transition: background .15s, transform .1s;
+  transition: background .15s, color .15s, transform .12s, box-shadow .15s;
 }
-.wlc-var-btn:hover  { background: #14306a; }
-.wlc-var-btn:active { transform: scale(.95); }
+.wlc-var-btn:hover  { background: var(--gold); color: var(--accent); transform: translateY(-2px); box-shadow: 0 3px 10px rgba(0,0,0,.22); }
+.wlc-var-btn:active { transform: translateY(0) scale(.95); box-shadow: none; }
 
 /* ── Actions bar ── */
 .wlc-actions {
