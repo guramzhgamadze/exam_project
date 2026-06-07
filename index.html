@@ -52,6 +52,7 @@
 
     <!-- Desktop tab bar (hidden on mobile) -->
     <nav class="year-bar" id="desktop-nav">
+      <button class="year-btn home-btn" onclick="goHome()" title="მთავარი გვერდი">🏠 მთავარი</button>
       <button class="year-btn" data-year="2010" onclick="setYear('2010')">2010</button>
       <button class="year-btn" data-year="2011" onclick="setYear('2011')">2011</button>
       <button class="year-btn" data-year="2012" onclick="setYear('2012')">2012</button>
@@ -102,6 +103,7 @@
         <button class="drawer-close" onclick="closeMobileMenu()">✕</button>
       </div>
       <div class="drawer-body">
+        <button class="drawer-home-btn" onclick="goHome()">🏠 მთავარი გვერდი</button>
         <div class="drawer-section-label">წელი</div>
         <div class="drawer-years">
           <button class="drawer-year-btn" data-year="2010" onclick="drawerSetYear('2010')">2010</button>

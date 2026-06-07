@@ -459,11 +459,12 @@ function renderAnalytics() {
     const p = combinedTotal ? Math.round(combinedCorrect / combinedTotal * 100) : null;
     const col = pctColor(p);
     const openStr = d.openTotal > 0 ? ` · ღია: ${d.openCorrect}/${d.openTotal}` : '';
-    html += `<div class="an-year-card">
+    html += `<div class="an-year-card an-year-clickable" onclick="reviewYear('${yr}')" title="დააჭირეთ სრული ტესტის სანახავად">
       <div class="an-year-label">${yr}</div>
       <div class="an-year-pct" style="color:${col}">${p ?? '—'}%</div>
       ${pctBar(p, col)}
       <div class="an-year-meta">${d.sessions} გამოცდა · ${d.correct}/${d.total}${openStr}</div>
+      <div class="an-year-open-hint">👁 ნახვა</div>
     </div>`;
   });
   html += '</div>';
@@ -825,6 +826,156 @@ function showAnalytics() {
     pane.classList.add('active');
     renderAnalytics();
   }
+}
+
+/* ── Full session review (opened from a year card) ──────────────────────── */
+
+// A year card may aggregate several sessions — open the most recent one.
+function reviewYear(year) {
+  const { sessions } = loadStats();
+  const ys = sessions.filter(s => String(s.year) === String(year));
+  if (!ys.length) return;
+  const s = [...ys].sort((a, b) => new Date(b.date) - new Date(a.date))[0];
+  reviewSession(s.id);
+}
+
+function reviewSession(sessionId) {
+  const { sessions } = loadStats();
+  const s = sessions.find(x => x.id === sessionId);
+  if (!s) { alert('სესია ვერ მოიძებნა'); return; }
+  const exam = EXAMS[s.examKey];
+  if (!exam) { alert('ამ გამოცდის მონაცემები ვერ მოიძებნა'); return; }
+
+  const mcqByQ = {};
+  (s.mcqResults || []).forEach(r => { mcqByQ[r.qId] = r; });
+  const openByQ = {};
+  (s.openResults || []).forEach(r => { openByQ[r.qId] = r; });
+  const grades = s.openGrades || {};
+
+  let correct = 0, wrong = 0, skipped = 0;
+  const cards = exam.questions.map(q => {
+    if (q.type === 'mcq') {
+      const r   = mcqByQ[q.id] || {};
+      const sel = r.selected ?? null;
+      const ans = q.answer;
+      let status = 'skipped';
+      if (ans) {
+        if (mcqIsCorrect(sel, ans)) { status = 'correct'; correct++; }
+        else if (sel)               { status = 'wrong';   wrong++; }
+        else                        { status = 'skipped'; skipped++; }
+      }
+      return buildMCQResultCard(q, sel, ans, status);
+    }
+    return buildOpenReviewCard(q, openByQ[q.id] || { items: [] }, grades);
+  }).join('');
+
+  const mcqTotal    = exam.questions.filter(q => q.type === 'mcq' && q.answer).length;
+  const pct         = mcqTotal ? Math.round(correct / mcqTotal * 100) : null;
+  const col         = pctColor(pct);
+  const openCorrect = Object.values(grades).filter(v => v === true).length;
+  const openTotal   = Object.keys(grades).length;
+
+  const summaryHtml = `
+    <div class="res-summary-grid">
+      <div class="res-stat"><div class="res-num" style="color:var(--green)">${correct}</div><div class="res-lbl">სწორი</div></div>
+      <div class="res-stat"><div class="res-num" style="color:var(--red)">${wrong}</div><div class="res-lbl">არასწორი</div></div>
+      <div class="res-stat"><div class="res-num" style="color:var(--muted)">${skipped}</div><div class="res-lbl">გამოტოვ.</div></div>
+      <div class="res-stat"><div class="res-num" style="color:${col}">${pct ?? '—'}%</div><div class="res-lbl">ტესტური</div></div>
+      ${openTotal ? `<div class="res-stat"><div class="res-num" style="color:var(--accent)">${openCorrect}/${openTotal}</div><div class="res-lbl">ღია</div></div>` : ''}
+    </div>
+    <div class="res-score-bar"><div class="res-score-fill" style="width:0;background:${col}" id="rev-fill"></div></div>`;
+
+  const rs = document.getElementById('results-screen');
+  rs.innerHTML = `
+    <div class="res-topbar">
+      <div class="res-topbar-title">
+        <span>${exam.title} — ${exam.variantLabel}</span>
+        <span class="res-topbar-sub">${exam.date} · ${fmtDate(s.date)}</span>
+      </div>
+      <button class="res-back-btn" onclick="closeReview()">← სტატისტიკა</button>
+    </div>
+    <div class="res-summary-card">
+      <div class="res-summary-title">📋 ${s.label} — სრული მიმოხილვა</div>
+      ${summaryHtml}
+    </div>
+    <div class="res-questions-list">${cards}</div>`;
+
+  const welcome = document.getElementById('welcome-screen');
+  if (welcome) welcome.style.display = 'none';
+  document.getElementById('selection-screen').style.display = 'none';
+  rs.style.display = 'flex';
+  window.scrollTo(0, 0);
+  setTimeout(() => { const f = document.getElementById('rev-fill'); if (f) f.style.width = (pct ?? 0) + '%'; }, 200);
+}
+
+function closeReview() {
+  document.getElementById('results-screen').style.display = 'none';
+  document.getElementById('selection-screen').style.display = 'flex';
+  hideWelcome();      // make sure nav + app are visible
+  showAnalytics();    // return to the statistics pane
+  window.scrollTo(0, 0);
+}
+
+// Open-question card for the review screen — reads typed answers from the
+// saved session (works for matching/selection too) and shows the grade.
+function buildOpenReviewCard(q, r, grades) {
+  const items = r.items || [];
+  const gradeBadge = (key) => {
+    if (grades[key] === true)  return '<span class="res-badge res-badge-ok">✓ სწორი</span>';
+    if (grades[key] === false) return '<span class="res-badge res-badge-err">✗ არასწორი</span>';
+    return '';
+  };
+
+  let body = '', headBadge = '';
+  if (!items.length) {
+    const typed = r.typed || '';
+    const model = r.modelAnswer || q.single_answer || '';
+    headBadge = gradeBadge(q.id);
+    body = `<div class="res-open-row">
+      <div class="res-open-col"><div class="res-open-lbl">თქვენი პასუხი</div>
+        <div class="res-open-typed ${typed ? '' : 'res-open-empty'}">${typed || '— არ შეგიყვანიათ —'}</div></div>
+      ${model ? `<div class="res-open-col"><div class="res-open-lbl">სწორი პასუხი</div>
+        <div class="res-open-model">${model}</div></div>` : ''}
+    </div>`;
+  } else {
+    body = items.map(item => {
+      const typed    = item.typed || '';
+      const fullItem = (q.items || []).find(it => String(it.id) === String(item.id)) || {};
+      const model    = item.modelAnswer || fullItem.answer || '';
+      const itemText = item.text || fullItem.text || '';
+      const key      = q.id + '_' + item.id;
+      return `<div class="res-open-item">
+        <div class="res-open-item-id">${item.id}</div>
+        <div class="res-open-item-q">${itemText} ${gradeBadge(key)}</div>
+        <div class="res-open-row">
+          <div class="res-open-col"><div class="res-open-lbl">თქვენი პასუხი</div>
+            <div class="res-open-typed ${typed ? '' : 'res-open-empty'}">${typed || '— არ შეგიყვანიათ —'}</div></div>
+          ${model ? `<div class="res-open-col"><div class="res-open-lbl">სწორი პასუხი</div>
+            <div class="res-open-model">${model}</div></div>` : ''}
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  return `
+    <div class="res-q-card res-q-open">
+      <div class="res-q-head">
+        <span class="res-q-num open-num">${q.num}</span>
+        <span class="res-q-text-short">${q.text.slice(0, 80)}${q.text.length > 80 ? '…' : ''}</span>
+        <span class="res-badge res-badge-open">ღია</span>
+        ${headBadge}
+      </div>
+      <details class="res-details">
+        <summary>პასუხების ნახვა</summary>
+        <div class="res-q-full">
+          <div class="q-text">${q.text}</div>
+          ${q.note ? `<div class="q-note">⚠️ ${q.note}</div>` : ''}
+          ${q.img ? `<div class="q-img-wrap"><img src="${q.img}" alt="ილუსტრაცია" loading="lazy"></div>` : ''}
+          ${(typeof renderStmts === 'function') ? renderStmts(q.stmts) : ''}
+          ${body}
+        </div>
+      </details>
+    </div>`;
 }
 
 /* ── Utility ────────────────────────────────────────────────────────────── */

@@ -115,6 +115,8 @@ body {
 .year-btn.active { color: #fff; border-bottom-color: var(--gold); }
 .analytics-tab   { margin-left: auto; color: #8abcf0; }
 .analytics-tab.active { color: #fff; border-bottom-color: #6ab0e8; }
+.home-btn        { color: #cbd6ea; }
+.home-btn:hover  { color: #fff; }
 
 .variant-bar { background: #1a3158; display: none; padding: 0 var(--sp-lg); flex-shrink: 0; }
 .variant-bar.visible { display: flex; }
@@ -714,6 +716,10 @@ body {
 .an-year-label { font-size:var(--fs-xs); color:var(--muted); font-weight:600; letter-spacing:.05em; }
 .an-year-pct   { font-size:var(--fs-lg); font-weight:700; font-family:'Noto Serif Georgian',serif; line-height:1.2; margin:4px 0 6px; }
 .an-year-meta  { font-size:var(--fs-xs); color:var(--muted); margin-top:6px; }
+.an-year-clickable { cursor:pointer; transition:transform .15s, box-shadow .15s, border-color .15s; position:relative; }
+.an-year-clickable:hover { transform:translateY(-3px); box-shadow:0 6px 18px rgba(27,60,112,.18); border-color:var(--accent); }
+.an-year-open-hint { font-size:var(--fs-xs); color:var(--accent); font-weight:600; margin-top:8px; opacity:0; transition:opacity .15s; }
+.an-year-clickable:hover .an-year-open-hint { opacity:1; }
 
 .an-history-table-wrap { overflow-x:auto; }
 .an-history-table { width:100%; border-collapse:collapse; font-size:var(--fs-sm); background:var(--paper); border:1.5px solid var(--border); border-radius:var(--radius); overflow:hidden; box-shadow:var(--shadow); }
@@ -1129,6 +1135,23 @@ body {
 }
 
 .drawer-analytics-btn:hover { background: #1e3a6a; color: #a8d0ff; border-color: #4a6a9a; }
+
+.drawer-home-btn {
+  width: 100%;
+  background: #1e3a6a;
+  border: 1.5px solid #3a5a8a;
+  color: #cbd6ea;
+  padding: 12px 14px;
+  border-radius: 8px;
+  font-family: 'Noto Sans Georgian', sans-serif;
+  font-size: .9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .18s;
+  text-align: left;
+  margin-bottom: 14px;
+}
+.drawer-home-btn:hover { background: #264777; color: #fff; border-color: #4a6a9a; }
 
 /* ── Responsive switch ────────────────────────────────────────────────────── */
 @media (max-width: 700px) {

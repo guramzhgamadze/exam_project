@@ -1130,6 +1130,11 @@ function pickAnalytics() {
   showAnalytics();
 }
 
+function goHome() {
+  closeMobileMenu();   // harmless on desktop; closes the drawer on mobile
+  showWelcome();
+}
+
 /* ════════════════════════════════════════════════════════════
    SWIPE GESTURES  (mobile touch support)
 ════════════════════════════════════════════════════════════ */
