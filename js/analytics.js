@@ -625,6 +625,7 @@ function renderAnalytics() {
 <div class="an-reset-wrap">
   ${anyUnrechecked ? `<button class="an-recheck-btn" onclick="recheckAllSessions()">🔄 ძველი შედეგების განახლება</button>` : `<span class="an-recheck-done">✅ ყველა შედეგი განახლებულია</span>`}
   <div class="an-transfer-wrap">
+    <button class="an-export-btn" onclick="exportForAI()">🤖 AI ანალიზისთვის</button>
     <button class="an-export-btn" onclick="exportStats()">📤 სტატისტიკის ექსპორტი</button>
     <button class="an-import-btn" onclick="document.getElementById('an-import-input').click()">📥 სტატისტიკის იმპორტი</button>
     <input id="an-import-input" type="file" accept=".json" style="display:none" onchange="importStats(event)">
@@ -758,6 +759,145 @@ function exportStats() {
     const date  = new Date().toISOString().slice(0, 10);
     a.href      = url;
     a.download  = `biology_stats_${date}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  } catch (e) {
+    alert('ექსპორტი ვერ მოხერხდა: ' + e.message);
+  }
+}
+
+/* ── AI-friendly report export ──────────────────────────────────────────── */
+// Converts the data-bank HTML (sub/sup/strong/u/br) into plain readable text
+// so chemical formulas etc. stay meaningful for an LLM.
+function htmlToPlain(s) {
+  if (s == null) return '';
+  return String(s)
+    .replace(/<sup>(.*?)<\/sup>/gi, '^$1')
+    .replace(/<sub>(.*?)<\/sub>/gi, '_$1')
+    .replace(/<br\s*\/?>/gi, ' ')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"').replace(/&nbsp;/g, ' ').replace(/&#x?[0-9a-f]+;/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function parseChoiceKV(ch) {
+  ch = String(ch).trim();
+  let k = '', v = ch;
+  if (ch.includes(')')) { const i = ch.indexOf(')'); k = ch.slice(0, i).trim(); v = ch.slice(i + 1).trim(); }
+  else if (ch && 'აბგდ'.includes(ch[0])) { k = ch[0]; v = ch.slice(1).replace(/^[)\s]+/, ''); }
+  return { k, v };
+}
+
+function exportForAI() {
+  const raw = loadStats();
+  if (!raw.sessions || !raw.sessions.length) { alert('ჯერ არ არის სტატისტიკა ექსპორტისთვის'); return; }
+  const agg = computeStats();
+
+  const L = [];
+  const P = (s = '') => L.push(s);
+
+  P('# ბიოლოგია — გამოცდების სტატისტიკის ანალიზი');
+  P();
+  P(`გენერირების თარიღი: ${new Date().toLocaleString('ka-GE')}`);
+  P(`გავლილი გამოცდები: ${raw.sessions.length}`);
+  P();
+  P('> ეს ფაილი შეიცავს მოსწავლის ყველა ნაპასუხებ კითხვას სრული ტექსტით, ' +
+    'არჩეულ და სწორ პასუხებთან ერთად — გადაეცი AI-ს ანალიზისთვის ' +
+    '(სუსტი თემები, შეცდომების ნიმუშები, რჩევები).');
+  P();
+
+  // ── Overall ──
+  const overallPct = agg.totalAnswered ? Math.round(agg.totalCorrect / agg.totalAnswered * 100) : 0;
+  P('## საერთო შედეგები');
+  P(`- სწორი პასუხები: ${agg.totalCorrect} / ${agg.totalAnswered} (${overallPct}%)`);
+  P(`- არასწორი: ${agg.totalWrongAll}`);
+  P(`- გამოტოვებული: ${agg.totalSkipped}`);
+  if (agg.totalOpenTotal) P(`- ღია კითხვები (შეფასებული): ${agg.totalOpenCorrect} / ${agg.totalOpenTotal}`);
+  P();
+
+  // ── Per-year ──
+  P('## წლების მიხედვით');
+  Object.entries(agg.byYear).sort().forEach(([yr, d]) => {
+    const c = d.correct + d.openCorrect, t = d.total + d.openTotal;
+    const p = t ? Math.round(c / t * 100) : 0;
+    P(`- ${yr}: ${p}% (${c}/${t}, ${d.sessions} გამოცდა)`);
+  });
+  P();
+
+  // ── Top mistakes ──
+  if (agg.mistakes && agg.mistakes.length) {
+    P('## ყველაზე ხშირი შეცდომები');
+    agg.mistakes.slice(0, 20).forEach((m, i) => {
+      P(`${i + 1}. [${m.isOpen ? 'ღია' : 'ტესტური'}] კ.${m.num} — ${m.wrongCount}/${m.total} შეცდომა — ${htmlToPlain(m.text)}`);
+    });
+    P();
+  }
+
+  // ── Detailed per session ──
+  P('## დეტალური მიმოხილვა (კითხვა-პასუხი)');
+  [...raw.sessions].sort((a, b) => new Date(a.date) - new Date(b.date)).forEach(s => {
+    const exam = EXAMS[s.examKey];
+    P();
+    P(`### ${s.label} — ${fmtDate(s.date)}`);
+    if (!exam) { P('_(ამ გამოცდის სრული მონაცემები ვერ მოიძებნა)_'); return; }
+
+    const mcqByQ = {}; (s.mcqResults  || []).forEach(r => { mcqByQ[r.qId]  = r; });
+    const openByQ = {}; (s.openResults || []).forEach(r => { openByQ[r.qId] = r; });
+    const grades = s.openGrades || {};
+
+    exam.questions.forEach(q => {
+      if (q.type === 'mcq') {
+        const r   = mcqByQ[q.id] || {};
+        const sel = r.selected;
+        const ans = q.answer;
+        const ok  = ans ? mcqIsCorrect(sel, ans) : null;
+        const mark = ok === null ? '•' : ok ? '✓ სწორი' : sel ? '✗ არასწორი' : '— გამოტოვებული';
+        const choices = (q.choices || []).map(parseChoiceKV);
+        const findText = (key) => {
+          if (!key) return '—';
+          const ch = choices.find(c => c.k === key);
+          return ch ? `${key}) ${htmlToPlain(ch.v)}` : key;
+        };
+        P(`**კ.${q.num} [${mark}]** ${htmlToPlain(q.text)}`);
+        P(`  - არჩეული: ${sel ? findText(sel) : '— (არ უპასუხია)'}`);
+        if (ans) P(`  - სწორი: ${ans.split('|').map(findText).join(' / ')}`);
+      } else {
+        const r = openByQ[q.id] || { items: [] };
+        P(`**კ.${q.num} [ღია]** ${htmlToPlain(q.text)}`);
+        if (!(r.items || []).length) {
+          const g     = grades[q.id];
+          const model = r.modelAnswer || q.single_answer;
+          P(`  - თქვენი პასუხი: ${htmlToPlain(r.typed) || '— (არ უპასუხია)'}`);
+          if (model) P(`  - სწორი პასუხი: ${htmlToPlain(model)}`);
+          if (g !== undefined) P(`  - შეფასება: ${g ? 'სწორი' : 'არასწორი'}`);
+        } else {
+          r.items.forEach(item => {
+            const key   = q.id + '_' + item.id;
+            const g     = grades[key];
+            const full  = (q.items || []).find(it => String(it.id) === String(item.id)) || {};
+            const model = item.modelAnswer || full.answer;
+            P(`  - (${item.id}) ${htmlToPlain(item.text || full.text)}`);
+            P(`     - თქვენი პასუხი: ${htmlToPlain(item.typed) || '—'}`);
+            if (model) P(`     - სწორი: ${htmlToPlain(model)}`);
+            if (g !== undefined) P(`     - შეფასება: ${g ? 'სწორი' : 'არასწორი'}`);
+          });
+        }
+      }
+    });
+  });
+
+  try {
+    const md   = L.join('\n');
+    const blob = new Blob([md], { type: 'text/markdown' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    const date = new Date().toISOString().slice(0, 10);
+    a.href     = url;
+    a.download = `biology_stats_AI_${date}.md`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);

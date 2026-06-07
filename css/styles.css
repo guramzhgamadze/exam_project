@@ -1749,7 +1749,11 @@ body {
 
 /* Mobile portrait */
 @media (max-width: 480px) {
-  #welcome-screen    { position: static; min-height: 100vh; align-items: flex-start; padding: 10px; }
+  /* 100dvh = the *visible* viewport (excludes the browser address bar), so the
+     card never forces the page taller than the screen → no empty scroll space.
+     align-items:center keeps a short card balanced; a tall card grows the
+     container and scrolls naturally with no trailing gap. */
+  #welcome-screen    { position: static; min-height: 100vh; min-height: 100dvh; align-items: center; padding: 10px; }
   .wlc-card          { flex: none; }
   .wlc-year-grid     { grid-template-columns: repeat(4, 1fr); grid-template-rows: none; flex: none; height: auto; }
   .wlc-year-card     { aspect-ratio: 1; }
