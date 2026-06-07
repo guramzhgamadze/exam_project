@@ -908,7 +908,6 @@ function buildResultsScreen() {
 
   document.getElementById('results-screen').innerHTML = `
     <div class="res-topbar">
-      <img src="${exam.logo}" alt="NAEC" class="res-logo">
       <div class="res-topbar-title">
         <span>${exam.title} — ${exam.variantLabel}</span>
         <span class="res-topbar-sub">${exam.date} · გამოცდა დასრულდა</span>

@@ -11829,7 +11829,7 @@ const EXAMS = {
       "დ) I, II და III"
     ],
     "table": null,
-    "answer": "ა|ბ|გ|დ",
+    "answer": "ა",
     "items": [],
     "single_answer": null,
     "note": null
