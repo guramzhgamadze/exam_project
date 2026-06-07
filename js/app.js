@@ -1096,7 +1096,10 @@ function updateMobileLabel(year, variant) {
 ════════════════════════════════════════════════════════════ */
 
 function showWelcome() {
-  // Hide exam content, show welcome screen
+  // Hide the whole selection screen (it has min-height:100vh and would
+  // otherwise stack below the welcome screen on mobile, adding empty scroll).
+  const sel = document.getElementById('selection-screen');
+  if (sel) sel.style.display = 'none';
   document.getElementById('app').style.display              = 'none';
   document.getElementById('desktop-nav').style.display      = 'none';
   const mobileTopbar = document.getElementById('mobile-topbar');
@@ -1113,6 +1116,8 @@ function hideWelcome() {
   const welcome = document.getElementById('welcome-screen');
   if (welcome) welcome.style.display = 'none';
 
+  const sel = document.getElementById('selection-screen');
+  if (sel) sel.style.display = '';   // restore stylesheet flex
   document.getElementById('app').style.display         = '';
   document.getElementById('desktop-nav').style.display = '';
   const mobileTopbar = document.getElementById('mobile-topbar');
