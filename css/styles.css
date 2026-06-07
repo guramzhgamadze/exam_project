@@ -748,6 +748,12 @@ body {
 .an-year-clickable:hover { transform:translateY(-3px); box-shadow:0 6px 18px rgba(27,60,112,.18); border-color:var(--accent); }
 .an-year-open-hint { font-size:var(--fs-xs); color:var(--accent); font-weight:600; margin-top:8px; opacity:0; transition:opacity .15s; }
 .an-year-clickable:hover .an-year-open-hint { opacity:1; }
+.an-year-unchecked { font-size:clamp(.8rem,1.4vw,1rem); color:#a06a00; font-weight:700; margin:6px 0; line-height:1.2; }
+
+/* Incomplete-grading states */
+.an-incomplete-note { margin:12px 0 0; padding:clamp(9px,1.4vw,14px) clamp(12px,1.8vw,18px); background:#fff8e6; border:1.5px solid #e0b400; border-left:5px solid #e0b400; border-radius:7px; font-size:var(--fs-xs); color:#7a5a00; line-height:1.5; }
+.an-sess-unchecked { color:#a06a00 !important; font-weight:700; }
+.res-mark-pending  { color:#a06a00; }
 
 /* ── Attempt picker modal (year card with multiple attempts) ── */
 .attempt-modal-overlay {

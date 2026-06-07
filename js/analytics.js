@@ -93,7 +93,7 @@ function recordSession(examKey, mcqAnswers, openAnswers) {
     date:        new Date().toISOString(),
     mcqResults,
     openResults,
-    openGrades:  typeof openGrades !== 'undefined' ? {...openGrades} : {},
+    openGrades:  {},   // populated later when the student grades open answers
     score:       nCorrect,
     total:       scored.length,
     pct:         scored.length ? Math.round(nCorrect / scored.length * 100) : null,
@@ -118,47 +118,40 @@ function computeStats() {
   const { sessions } = loadStats();
   if (!sessions.length) return null;
 
-  const allMcq        = sessions.flatMap(s => s.mcqResults.filter(r => r.correct !== null));
-  const totalMcqAnswered = allMcq.length;
-  const totalMcqCorrect  = allMcq.filter(r => r.isRight).length;
-  const totalWrong       = allMcq.filter(r => !r.isRight && r.selected !== null).length;
-  const totalSkipped     = allMcq.filter(r => !r.isRight && r.selected === null).length;
-  const totalOpenCorrect = sessions.reduce((acc, s) => acc + Object.values(s.openGrades||{}).filter(v=>v===true).length, 0);
-  const totalOpenWrong   = sessions.reduce((acc, s) => acc + Object.values(s.openGrades||{}).filter(v=>v===false).length, 0);
-  const totalOpenTotal   = sessions.reduce((acc, s) => acc + Object.keys(s.openGrades||{}).length, 0);
-  const totalAnswered    = totalMcqAnswered + totalOpenTotal;
-  const totalCorrect     = totalMcqCorrect  + totalOpenCorrect;
-  const totalWrongAll    = totalWrong + totalOpenWrong;
-
-  // Per-year (MCQ + open grades)
+  // ── Whole-test aggregation over COMPLETE sessions only ──
+  // A session counts toward stats only once every typed open answer is graded.
+  // Per-year aggregation includes all years (so cards stay clickable to finish
+  // grading), but only complete sessions contribute to the score.
+  let totalAnswered = 0, totalCorrect = 0, totalSkipped = 0;
+  let totalOpenCorrect = 0, totalOpenTotal = 0;
+  let completeCount = 0, incompleteCount = 0;
   const byYear = {};
-  sessions.forEach(s => {
-    const grades = s.openGrades || {};
-    const openCorrect = Object.values(grades).filter(v => v === true).length;
-    const openTotal   = Object.keys(grades).length;
-    if (!byYear[s.year]) byYear[s.year] = { sessions: 0, correct: 0, total: 0, openCorrect: 0, openTotal: 0 };
-    byYear[s.year].sessions++;
-    byYear[s.year].correct     += s.score;
-    byYear[s.year].total       += s.total;
-    byYear[s.year].openCorrect += openCorrect;
-    byYear[s.year].openTotal   += openTotal;
-  });
 
-  // Skipped open items (empty answer, ungraded or no answer typed)
-  let totalOpenSkipped = 0;
   sessions.forEach(s => {
-    (s.openResults || []).forEach(r => {
-      if (!r.items.length) {
-        const typed = (r.typed || '').trim();
-        if (!typed) totalOpenSkipped++;
-      } else {
-        r.items.forEach(item => {
-          const typed = (item.typed || '').trim();
-          if (!typed) totalOpenSkipped++;
-        });
-      }
-    });
+    const exam = EXAMS[s.examKey];
+    const t    = exam ? computeReviewTotals(s, exam) : null;
+    if (!byYear[s.year]) byYear[s.year] = { sessions: 0, complete: 0, incomplete: 0, correct: 0, total: 0, openCorrect: 0, openTotal: 0 };
+    byYear[s.year].sessions++;
+
+    if (t && t.complete) {
+      completeCount++;
+      totalAnswered    += t.totalQ;
+      totalCorrect     += t.totalRight;
+      totalSkipped     += t.skipped;
+      totalOpenCorrect += t.openCorrect;
+      totalOpenTotal   += t.openUnits;
+      byYear[s.year].complete++;
+      byYear[s.year].correct     += t.totalRight;
+      byYear[s.year].total       += t.totalQ;
+      byYear[s.year].openCorrect += t.openCorrect;
+      byYear[s.year].openTotal   += t.openUnits;
+    } else {
+      incompleteCount++;
+      byYear[s.year].incomplete++;
+    }
   });
+  const totalWrong    = totalAnswered - totalCorrect - totalSkipped;
+  const totalWrongAll = totalAnswered - totalCorrect;
 
   // Mistake map (MCQ + open wrong answers)
   const mistakeMap = {};
@@ -232,8 +225,8 @@ function computeStats() {
     .filter(m => m.wrongCount > 0)
     .sort((a, b) => b.wrongCount - a.wrongCount);
 
-  const totalSkippedAll = totalSkipped + totalOpenSkipped;
-  return { sessions, totalAnswered, totalCorrect, totalWrong, totalWrongAll, totalSkipped: totalSkippedAll, totalOpenCorrect, totalOpenTotal, byYear, mistakes };
+  return { sessions, totalAnswered, totalCorrect, totalWrong, totalWrongAll, totalSkipped,
+           totalOpenCorrect, totalOpenTotal, byYear, mistakes, completeCount, incompleteCount };
 }
 
 /* ── Helpers ────────────────────────────────────────────────────────────── */
@@ -359,61 +352,33 @@ function renderMistakeQuestion(m) {
 }
 
 
-/* ── Open answer grading from analytics ─────────────────────────────────── */
+/* ── Open answer grading from analytics history ─────────────────────────── */
 function analyticsGradeToggle(sessionId, key, val) {
   const stats = loadStats();
-  const s = stats.sessions.find(s => s.id === sessionId);
+  const s = stats.sessions.find(x => x.id === sessionId);
   if (!s) return;
   if (!s.openGrades) s.openGrades = {};
-  s.openGrades[key] = val;
-
-  // Always derive from mcqScore/mcqTotal — never from the mutable score/total
-  const grades     = s.openGrades;
-  const openCorrect = Object.values(grades).filter(v => v === true).length;
-  const openTotal   = Object.keys(grades).length;
-  const mcqCorrect  = s.mcqScore !== undefined ? s.mcqScore : (s.score - openCorrect); // safe fallback
-  const mcqTotal    = s.mcqTotal !== undefined ? s.mcqTotal : (s.total - openTotal);
-
-  // Ensure mcqScore/mcqTotal are persisted so future calls are safe
-  s.mcqScore = mcqCorrect;
-  s.mcqTotal = mcqTotal;
-  s.score    = mcqCorrect + openCorrect;
-  s.total    = mcqTotal   + openTotal;
-  s.pct      = s.total ? Math.round(s.score / s.total * 100) : null;
+  if (s.openGrades[key] === val) delete s.openGrades[key];   // click the active choice again → un-grade
+  else s.openGrades[key] = val;
+  syncSessionScore(s);
   saveStats(stats);
 
-  // ── Surgical DOM updates — no full re-render ──
+  // Full re-render keeps the whole-test score / completeness display consistent;
+  // preserve which sessions are expanded, the mistakes panel, and scroll position.
+  const openBodies = [];
+  document.querySelectorAll('.an-sess-body').forEach(b => { if (b.style.display && b.style.display !== 'none') openBodies.push(b.id); });
+  const mistakesOpen = document.querySelector('.an-mistakes-details')?.open;
+  const sy = window.scrollY;
 
-  // Grade buttons
-  const wrap = document.querySelector(`.an-open-grade-wrap[data-sid="${sessionId}"][data-key="${key}"]`);
-  if (wrap) {
-    wrap.querySelectorAll('.an-open-grade-btn').forEach(b => b.classList.remove('active'));
-    const target = wrap.querySelector(`.an-open-grade-btn[data-val="${val}"]`);
-    if (target) target.classList.add('active');
-  }
+  renderAnalytics();
 
-  // Card border colour
-  const card = wrap && wrap.closest('.an-open-card, .an-open-item');
-  if (card) {
-    card.classList.remove('an-open-card-ok', 'an-open-card-err', 'an-open-item-ok', 'an-open-item-err');
-    const isItem = card.classList.contains('an-open-item');
-    card.classList.add(val ? (isItem ? 'an-open-item-ok' : 'an-open-card-ok')
-                            : (isItem ? 'an-open-item-err' : 'an-open-card-err'));
-  }
-
-  // Session score / pct
-  const scoreEl = document.getElementById(`an-sess-score-${sessionId}`);
-  if (scoreEl) scoreEl.textContent = `${s.score} / ${s.total}`;
-  const pctEl = document.getElementById(`an-sess-pct-${sessionId}`);
-  if (pctEl) {
-    const col = pctColor(s.pct);
-    pctEl.style.color = col;
-    pctEl.textContent = `${s.pct ?? '—'}%`;
-  }
-
-  // Open score badge
-  const badge = document.getElementById(`an-open-score-${sessionId}`);
-  if (badge) badge.textContent = `📝 ღია: ${openCorrect} / ${openTotal}`;
+  openBodies.forEach(id => {
+    const b = document.getElementById(id);
+    const tog = document.getElementById('tog-' + id);
+    if (b) { b.style.display = 'block'; if (tog) tog.textContent = '▼'; }
+  });
+  if (mistakesOpen) { const d = document.querySelector('.an-mistakes-details'); if (d) d.open = true; }
+  window.scrollTo(0, sy);
 }
 
 function buildAnOpenGradeButtons(sessionId, key, savedGrades) {
@@ -451,9 +416,12 @@ function renderAnalytics() {
     return;
   }
 
-  const { sessions, totalAnswered, totalCorrect, totalWrong, totalWrongAll, totalSkipped, totalOpenCorrect, totalOpenTotal, byYear, mistakes } = stats;
+  const { sessions, totalAnswered, totalCorrect, totalWrong, totalWrongAll, totalSkipped, totalOpenCorrect, totalOpenTotal, byYear, mistakes, incompleteCount } = stats;
   const overallPct   = totalAnswered ? Math.round(totalCorrect / totalAnswered * 100) : null;
   const overallColor = pctColor(overallPct);
+  const incompleteNote = incompleteCount > 0
+    ? `<div class="an-incomplete-note">⚠️ ${incompleteCount} გამოცდა ჯერ არ არის სრულად შეფასებული — სანამ ყველა ღია პასუხს არ შეამოწმებთ, ის არ ჩაითვლება სტატისტიკაში.</div>`
+    : '';
 
   // ── Overview ──
   let html = `
@@ -473,24 +441,31 @@ function renderAnalytics() {
   <div class="an-card"><div class="an-big-num" style="color:var(--muted)">${totalSkipped}</div><div class="an-card-lbl">გამოტოვებული</div></div>
   <div class="an-card"><div class="an-big-num">${totalAnswered}</div><div class="an-card-lbl">სულ კითხვა</div></div>
   ${totalOpenTotal > 0 ? `<div class="an-card"><div class="an-big-num" style="color:var(--accent)">${totalOpenCorrect}/${totalOpenTotal}</div><div class="an-card-lbl">ღია ქულა</div></div>` : ''}
-</div>`;
+</div>
+${incompleteNote}`;
 
   // ── Per-year ──
   html += `<div class="an-section-title" style="margin-top:28px">📅 წლების მიხედვით</div><div class="an-year-grid">`;
   Object.entries(byYear).sort().forEach(([yr, d]) => {
-    const combinedCorrect = d.correct + d.openCorrect;
-    const combinedTotal   = d.total   + d.openTotal;
-    const p = combinedTotal ? Math.round(combinedCorrect / combinedTotal * 100) : null;
+    // d.correct / d.total are whole-test totals over COMPLETE attempts only.
+    const hasComplete = d.complete > 0;
+    const p   = hasComplete && d.total ? Math.round(d.correct / d.total * 100) : null;
     const col = pctColor(p);
-    const openStr = d.openTotal > 0 ? ` · ღია: ${d.openCorrect}/${d.openTotal}` : '';
-    const multi   = d.sessions > 1;
-    const hint    = multi ? `👁 ${d.sessions} მცდელობა` : '👁 ნახვა';
-    const tip     = multi ? 'დააჭირეთ მცდელობის ასარჩევად' : 'დააჭირეთ სრული ტესტის სანახავად';
+    const openStr  = d.openTotal > 0 ? ` · ღია: ${d.openCorrect}/${d.openTotal}` : '';
+    const incStr   = d.incomplete > 0 ? ` · ⚠️${d.incomplete} შეუმოწმებელი` : '';
+    const multi    = d.sessions > 1;
+    const hint     = multi ? `👁 ${d.sessions} მცდელობა` : '👁 ნახვა';
+    const tip      = multi ? 'დააჭირეთ მცდელობის ასარჩევად' : 'დააჭირეთ სრული ტესტის სანახავად';
+    const pctHtml  = hasComplete
+      ? `<div class="an-year-pct" style="color:${col}">${p ?? '—'}%</div>${pctBar(p, col)}`
+      : `<div class="an-year-pct an-year-unchecked">⚠️ შეუმოწმებელი</div>`;
+    const metaHtml = hasComplete
+      ? `${d.complete} გამოცდა · ${d.correct}/${d.total}${openStr}${incStr}`
+      : `${d.sessions} გამოცდა${incStr}`;
     html += `<div class="an-year-card an-year-clickable" onclick="reviewYear('${yr}')" title="${tip}">
       <div class="an-year-label">${yr}</div>
-      <div class="an-year-pct" style="color:${col}">${p ?? '—'}%</div>
-      ${pctBar(p, col)}
-      <div class="an-year-meta">${d.sessions} გამოცდა · ${d.correct}/${d.total}${openStr}</div>
+      ${pctHtml}
+      <div class="an-year-meta">${metaHtml}</div>
       <div class="an-year-open-hint">${hint}</div>
     </div>`;
   });
@@ -501,11 +476,14 @@ function renderAnalytics() {
 
   [...sessions].reverse().forEach((s, idx) => {
     const sid   = `sess-${s.id}`;
-    const openCorrect = Object.values(s.openGrades||{}).filter(v=>v===true).length;
-    const openTotal   = Object.keys(s.openGrades||{}).length;
-    const combinedCorrect = (s.mcqScore ?? s.score) + openCorrect;
-    const combinedTotal   = (s.mcqTotal ?? s.total) + openTotal;
-    const p = combinedTotal ? Math.round(combinedCorrect / combinedTotal * 100) : s.pct;
+    const exam  = EXAMS[s.examKey];
+    const t     = exam ? computeReviewTotals(s, exam) : null;
+    const openCorrect = t ? t.openCorrect : Object.values(s.openGrades||{}).filter(v=>v===true).length;
+    const openUnits   = t ? t.openUnits   : Object.keys(s.openGrades||{}).length;
+    const combinedCorrect = t ? t.totalRight : ((s.mcqScore ?? s.score) + openCorrect);
+    const combinedTotal   = t ? t.totalQ     : ((s.mcqTotal ?? s.total) + openUnits);
+    const complete = t ? t.complete : true;
+    const p = complete && combinedTotal ? Math.round(combinedCorrect / combinedTotal * 100) : null;
     const col   = pctColor(p);
     const hasOpen = s.openResults && s.openResults.some(r =>
       (r.items.length ? r.items.some(it => it.typed) : r.typed)
@@ -525,9 +503,11 @@ function renderAnalytics() {
     <span class="an-date">${fmtDate(s.date)}</span>
     <span class="an-sess-score" id="an-sess-score-${s.id}">${combinedCorrect} / ${combinedTotal}</span>
     ${scoreDelta}
-    <span class="an-sess-pct" id="an-sess-pct-${s.id}" style="color:${col}">${p ?? '—'}%</span>
+    ${complete
+      ? `<span class="an-sess-pct" id="an-sess-pct-${s.id}" style="color:${col}">${p ?? '—'}%</span>`
+      : `<span class="an-sess-pct an-sess-unchecked" id="an-sess-pct-${s.id}" title="ზოგი ღია პასუხი ჯერ არ არის შემოწმებული">⚠️ შეუმოწმებელი</span>`}
     ${recheckBadge}
-    ${s.openResults && s.openResults.length ? `<span class="an-open-score-badge" id="an-open-score-${s.id}">📝 ღია: ${Object.values(s.openGrades||{}).filter(v=>v===true).length} / ${Object.keys(s.openGrades||{}).length || '?' }</span>` : ''}
+    ${s.openResults && s.openResults.length ? `<span class="an-open-score-badge" id="an-open-score-${s.id}">📝 ღია: ${openCorrect} / ${openUnits}</span>` : ''}
     <span class="an-sess-toggle" id="tog-${sid}">▶</span>
   </div>
   <div class="an-sess-body" id="${sid}" style="display:none">`;
@@ -756,13 +736,15 @@ function recheckAllSessions() {
       session.originalPct   = session.pct;
     }
 
-    if (session.score !== newScore || session.total !== newTotal) changed++;
+    const prevMcqScore = session.mcqScore ?? session.score;
+    const prevMcqTotal = session.mcqTotal ?? session.total;
+    if (prevMcqScore !== newScore || prevMcqTotal !== newTotal) changed++;
 
     session.mcqResults  = newMcqResults;
     session.openResults = newOpenResults;
-    session.score       = newScore;
-    session.total       = newTotal;
-    session.pct         = newPct;
+    session.mcqScore    = newScore;     // keep the canonical MCQ fields in sync
+    session.mcqTotal    = newTotal;
+    syncSessionScore(session);          // recompute combined score/total/pct, preserving open grades
     session.rechecked   = true;
     session.recheckedAt = new Date().toISOString();
   });
@@ -841,19 +823,22 @@ function exportForAI() {
 
   // ── Overall ──
   const overallPct = agg.totalAnswered ? Math.round(agg.totalCorrect / agg.totalAnswered * 100) : 0;
-  P('## საერთო შედეგები');
+  P('## საერთო შედეგები (მხოლოდ სრულად შეფასებული გამოცდები)');
   P(`- სწორი პასუხები: ${agg.totalCorrect} / ${agg.totalAnswered} (${overallPct}%)`);
   P(`- არასწორი: ${agg.totalWrongAll}`);
-  P(`- გამოტოვებული: ${agg.totalSkipped}`);
-  if (agg.totalOpenTotal) P(`- ღია კითხვები (შეფასებული): ${agg.totalOpenCorrect} / ${agg.totalOpenTotal}`);
+  if (agg.totalOpenTotal) P(`- ღია კითხვები: ${agg.totalOpenCorrect} / ${agg.totalOpenTotal}`);
+  if (agg.incompleteCount) P(`- ⚠️ შეუმოწმებელი გამოცდა (არ ითვლება): ${agg.incompleteCount}`);
   P();
 
-  // ── Per-year ──
+  // ── Per-year ── (whole-test totals over complete attempts)
   P('## წლების მიხედვით');
   Object.entries(agg.byYear).sort().forEach(([yr, d]) => {
-    const c = d.correct + d.openCorrect, t = d.total + d.openTotal;
-    const p = t ? Math.round(c / t * 100) : 0;
-    P(`- ${yr}: ${p}% (${c}/${t}, ${d.sessions} გამოცდა)`);
+    if (d.complete > 0) {
+      const p = d.total ? Math.round(d.correct / d.total * 100) : 0;
+      P(`- ${yr}: ${p}% (${d.correct}/${d.total}, ${d.complete} გამოცდა)${d.incomplete ? ` · ${d.incomplete} შეუმოწმებელი` : ''}`);
+    } else {
+      P(`- ${yr}: შეუმოწმებელი (${d.incomplete} გამოცდა ჯერ არ არის შეფასებული)`);
+    }
   });
   P();
 
@@ -1109,8 +1094,11 @@ function computeReviewTotals(s, exam) {
   const totalQ      = mcqGradable + openUnits;
   const totalWrong  = totalQ - totalRight;
   const finalPct    = totalQ ? Math.round(totalRight / totalQ * 100) : null;
+  // "complete" = every typed open answer has been graded (empty answers are
+  // treated as wrong automatically, so they don't block completion).
+  const complete    = ungradedTyped === 0;
   return { correct, wrong, skipped, mcqGradable, openUnits, openGraded, openCorrect,
-           ungradedTyped, totalRight, totalQ, totalWrong, finalPct };
+           ungradedTyped, totalRight, totalQ, totalWrong, finalPct, complete };
 }
 
 // Keep the session's stored score fields in sync (used by the analytics history list).
@@ -1153,16 +1141,21 @@ function renderResultReview(sessionId, isLive, keepView) {
   const t   = computeReviewTotals(s, exam);
   const col = pctColor(t.finalPct);
 
-  const notice = `<div class="res-rev-notice" id="res-rev-notice" style="${t.ungradedTyped > 0 ? '' : 'display:none'}">
-    ⚠️ ღია კითხვები ჯერ არ არის შეფასებული — გთხოვთ, ქვემოთ თითოეული ღია პასუხი მონიშნოთ როგორც ✓ სწორი ან ✗ არასწორი.
+  const notice = `<div class="res-rev-notice" id="res-rev-notice" style="${t.complete ? 'display:none' : ''}">
+    ⚠️ <strong>${t.ungradedTyped}</strong> ღია პასუხი ჯერ არ არის შემოწმებული — საბოლოო ქულა არ ჩაითვლება, სანამ ქვემოთ თითოეულ ღია პასუხს არ მონიშნავთ ✓ სწორად ან ✗ არასწორად.
   </div>`;
+
+  // The final mark is shown only once every open answer is graded.
+  const markCell = t.complete
+    ? `<div class="res-num res-num-mark" style="color:${col}" id="res-rev-mark">${t.totalRight} / ${t.totalQ}</div><div class="res-lbl">საბოლოო ქულა · <span id="res-rev-pct" style="color:${col}">${t.finalPct ?? '—'}%</span></div>`
+    : `<div class="res-num res-num-mark res-mark-pending" id="res-rev-mark">⚠️</div><div class="res-lbl">შეუმოწმებელი</div>`;
 
   const summaryHtml = `
     <div class="res-summary-grid">
       <div class="res-stat"><div class="res-num" id="res-rev-total">${t.totalQ}</div><div class="res-lbl">სულ კითხვა</div></div>
       <div class="res-stat"><div class="res-num" style="color:var(--green)" id="res-rev-right">${t.totalRight}</div><div class="res-lbl">სწორი</div></div>
-      <div class="res-stat"><div class="res-num" style="color:var(--red)" id="res-rev-wrong">${t.totalWrong}</div><div class="res-lbl">არასწორი</div></div>
-      <div class="res-stat"><div class="res-num res-num-mark" style="color:${col}" id="res-rev-mark">${t.totalRight} / ${t.totalQ}</div><div class="res-lbl">საბოლოო ქულა · <span id="res-rev-pct" style="color:${col}">${t.finalPct ?? '—'}%</span></div></div>
+      <div class="res-stat"><div class="res-num" style="color:var(--red)" id="res-rev-wrong">${t.totalWrong}</div><div class="res-lbl">${t.complete ? 'არასწორი' : 'არასწორი / შეუმოწმ.'}</div></div>
+      <div class="res-stat">${markCell}</div>
     </div>
     <div class="res-score-bar"><div class="res-score-fill" style="width:0;background:${col}" id="rev-fill"></div></div>
     ${notice}`;
@@ -1254,7 +1247,7 @@ function buildOpenReviewCard(q, r, grades, sessionId, autoOpen) {
     if (typed.trim() && grades[key] === undefined) anyToGrade = true;
     body = `<div class="res-open-row">
         <div class="res-open-col"><div class="res-open-lbl">თქვენი პასუხი</div>
-          <div class="res-open-typed ${typed ? '' : 'res-open-empty'}">${typed || '— არ შეგიყვანიათ —'}</div></div>
+          <div class="res-open-typed ${typed ? '' : 'res-open-empty'}">${typed ? escHtml(typed) : '— არ შეგიყვანიათ —'}</div></div>
         ${model ? `<div class="res-open-col"><div class="res-open-lbl">სწორი პასუხი</div>
           <div class="res-open-model">${model}</div></div>` : ''}
       </div>
@@ -1272,7 +1265,7 @@ function buildOpenReviewCard(q, r, grades, sessionId, autoOpen) {
         <div class="res-open-item-q">${itemText}</div>
         <div class="res-open-row">
           <div class="res-open-col"><div class="res-open-lbl">თქვენი პასუხი</div>
-            <div class="res-open-typed ${typed ? '' : 'res-open-empty'}">${typed || '— არ შეგიყვანიათ —'}</div></div>
+            <div class="res-open-typed ${typed ? '' : 'res-open-empty'}">${typed ? escHtml(typed) : '— არ შეგიყვანიათ —'}</div></div>
           ${model ? `<div class="res-open-col"><div class="res-open-lbl">სწორი პასუხი</div>
             <div class="res-open-model">${model}</div></div>` : ''}
         </div>

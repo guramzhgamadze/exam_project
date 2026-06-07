@@ -86,17 +86,15 @@ function buildSelectionScreen() {
       const card = document.createElement('div');
       card.className = 'wlc-year-card';
 
-      // Check if this year has a completed session in stats
+      // Best % for this year — whole-test totals, COMPLETE attempts only
+      // (consistent with the statistics page).
       const stats = (() => { try { return JSON.parse(localStorage.getItem('biology_exam_stats_v1') || '{"sessions":[]}'); } catch { return {sessions:[]}; } })();
       const yearSessions = stats.sessions.filter(s => s.year === year);
-      const bestPct = yearSessions.length
-        ? Math.max(...yearSessions.map(s => {
-            const openCorrect = Object.values(s.openGrades||{}).filter(v=>v===true).length;
-            const openTotal   = Object.keys(s.openGrades||{}).length;
-            const tot = (s.mcqTotal ?? s.total) + openTotal;
-            return tot ? Math.round(((s.mcqScore ?? s.score) + openCorrect) / tot * 100) : (s.pct ?? 0);
-          }))
-        : null;
+      const completePcts = yearSessions
+        .map(s => (EXAMS[s.examKey] && typeof computeReviewTotals === 'function') ? computeReviewTotals(s, EXAMS[s.examKey]) : null)
+        .filter(t => t && t.complete && t.finalPct !== null)
+        .map(t => t.finalPct);
+      const bestPct = completePcts.length ? Math.max(...completePcts) : null;
 
       let innerHtml = `<div class="wlc-year-num">${year}</div>`;
 
@@ -1027,6 +1025,19 @@ function buildOpenResultCard(q) {
 }
 
 function backToSelection() {
+  // Warn if the just-finished exam still has ungraded open answers (score won't count).
+  try {
+    const st = window._reviewState;
+    if (st && st.isLive && typeof computeReviewTotals === 'function' && typeof loadStats === 'function') {
+      const s = loadStats().sessions.find(x => x.id === st.sessionId);
+      const exam = s && EXAMS[s.examKey];
+      if (s && exam) {
+        const t = computeReviewTotals(s, exam);
+        if (!t.complete && !confirm(`${t.ungradedTyped} ღია პასუხი ჯერ არ არის შემოწმებული. სანამ ყველას არ შეამოწმებთ, ქულა არ ჩაითვლება სტატისტიკაში. დატოვებთ მაინც?`)) return;
+      }
+    }
+  } catch (e) { /* non-fatal */ }
+
   document.getElementById('results-screen').style.display   = 'none';
   document.getElementById('selection-screen').style.display = 'flex';
   showWelcome();
